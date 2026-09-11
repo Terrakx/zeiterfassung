@@ -186,24 +186,31 @@ struct TerminalReq {
     art: Option<String>,
 }
 
-async fn punch_terminal(State(state): State<AppState>, Json(req): Json<TerminalReq>) -> ApiResult<Json<Value>> {
+async fn punch_terminal(State(state): State<AppState>, headers: axum::http::HeaderMap, Json(req): Json<TerminalReq>) -> ApiResult<Json<Value>> {
+    let nr = req.personalnr.trim().trim_start_matches('0').to_string();
+    let key = format!("terminal:{nr}");
+    if let Some(secs) = state.limiter.locked(&key) {
+        return Err(AppError::TooMany(format!("Zu viele Fehlversuche. Bitte in {} Minuten erneut versuchen.", secs.div_ceil(60))));
+    }
+    let _ = headers;
     let emp = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE personalnr = ? AND aktiv = 1")
-        .bind(req.personalnr.trim().trim_start_matches('0'))
+        .bind(&nr)
         .fetch_optional(&state.db)
         .await?
         .or(sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE personalnr = ? AND aktiv = 1")
             .bind(req.personalnr.trim())
             .fetch_optional(&state.db)
             .await?);
-    let Some(emp) = emp else {
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-        return Err(AppError::Unauthorized);
-    };
-    let ok = emp.pin_hash.as_deref().map(|h| auth::verify_secret(&req.pin, h)).unwrap_or(false);
+    let ok = emp.as_ref().and_then(|e| e.pin_hash.as_deref()).map(|h| auth::verify_secret(&req.pin, h)).unwrap_or(false);
     if !ok {
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        if state.limiter.failure(&key) {
+            db::audit(&state.db, None, "terminal_gesperrt", Some(key.clone()), None, None).await?;
+        }
         return Err(AppError::Unauthorized);
     }
+    state.limiter.success(&key);
+    let emp = emp.unwrap();
     match req.art.as_deref().filter(|a| !a.is_empty()) {
         Some(a) => {
             let kind = PunchKind::parse(a).ok_or_else(|| bad("Unbekannte Stempelart"))?;

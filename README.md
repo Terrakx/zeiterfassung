@@ -34,7 +34,7 @@ cd ../server && cargo run                   # API + Frontend auf http://127.0.0.
 ```
 
 ```powershell
-# Windows PowerShell (kennt kein &&)
+# Windows PowerShell (kennt kein &&), im Projektstammverzeichnis ausführen
 cd web; npm install; npm run build; cd ../server; cargo run
 ```
 
@@ -48,7 +48,7 @@ Frontend-Entwicklung mit Hot-Reload: `cd web && npm run dev` (Proxy auf Port 809
 mit `TIMECARD_BIND=127.0.0.1:8090 cargo run` starten). Im Debug-Build liest der Server `web/build`
 zur Laufzeit, im Release-Build ist es einkompiliert.
 
-Tests: `cd server && cargo test`
+Tests: `cd server && cargo test` (Unit-Tests des Rechenkerns und Integrationstests der API mit In-Memory-Datenbank).
 
 ## Betrieb mit Docker
 
@@ -112,13 +112,17 @@ MONAT;FIRMA;MA;LOHNART;MENGE;BETRAG;MONAT_A;NLZ_K;NLZ_V;NLZ_B;NLZ_VER;ABM_DIVNLZ
 
 Umgesetzt und lokal getestet: Stammdaten, Wochenmodelle, Terminal und Portal, Abwesenheiten mit
 Genehmigung, Korrekturanträge zu Stempelungen, Urlaubs- und Gutstundenkonto mit automatischem
-Verfall, Urlaubskartei und Urlaubsübersicht als PDF, Monatsabschluss mit PDF (LuaLaTeX), BMD-CSV
-inklusive Korrekturexport, Periodenabschluss, Audit-Log, Backup-Download.
+Verfall, Urlaubskartei, Urlaubsübersicht und Jahresübersicht der Salden als PDF, Monatsabschluss
+mit PDF (LuaLaTeX), BMD-CSV inklusive Korrekturexport, Periodenabschluss, Audit-Log,
+Backup-Download, Sperre nach fünf Fehlversuchen bei Login und Terminal-PIN (15 Minuten),
+Sicherheitsheader (CSP, Frame-Schutz), stündliche Bereinigung abgelaufener Sessions.
+
+Für die Abstimmung mit der Lohnverrechnung liegen Musterdateien und eine Prüfliste unter
+`docs/bmd/`.
 
 Noch nicht erledigt oder zu klären:
 
 - Docker-Image ist geschrieben, aber ohne Docker auf dem Entwicklungsrechner ungetestet.
 - Löschzeilen (Verbuchungsart 1) für Gutstunden-Töpfe und die Spalte `ABM_DIVNLZID` mit dem
   Lohnverrechner in der BMD-Importvorschau prüfen.
-- Jahresübersicht der Gleitzeitsalden als Bericht.
 - Offene Fragen an den Kunden: siehe [UMSETZUNGSPLAN.md](UMSETZUNGSPLAN.md), Abschnitt 9.

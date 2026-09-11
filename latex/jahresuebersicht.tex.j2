@@ -1,0 +1,40 @@
+\documentclass[a4paper,landscape,9pt]{extarticle}
+\usepackage[a4paper,landscape,margin=14mm,top=18mm,bottom=18mm]{geometry}
+\usepackage{fontspec}
+\setmainfont{Latin Modern Sans}
+\usepackage[table]{xcolor}
+\usepackage{longtable,booktabs,array,graphicx,fancyhdr,lastpage}
+\usepackage[german]{babel}
+\definecolor{primary}{HTML}{ {{- primary_hex -}} }
+\definecolor{muted}{HTML}{667085}
+\definecolor{neg}{HTML}{C0392B}
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{3.5pt}
+\setlength{\LTleft}{0pt}\setlength{\LTright}{\fill}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\textcolor{muted}{ {{- firmenname -}} \ · Jahresübersicht Gleitzeitsalden}}
+\rhead{\small\textcolor{muted}{erstellt {{ erstellt_am }} }}
+\lfoot{\scriptsize\textcolor{muted}{ {{- fusszeile -}} }}
+\rfoot{\scriptsize\textcolor{muted}{Seite \thepage\ von \pageref{LastPage}}}
+\renewcommand{\headrulewidth}{0.3pt}
+\begin{document}
+
+{% if logo %}\includegraphics[height=11mm]{ {{- logo -}} }\\[2mm]{% endif %}
+{\LARGE\bfseries\textcolor{primary}{Jahresübersicht {{ jahr }}}}\\[1mm]
+{\small\textcolor{muted}{Differenz je Monat (Ist inklusive Nichtleistungszeit und Feiertag minus Soll), Jahressummen und Gleitzeitsaldo zum Jahresende. Abgeschlossene Monate sind mit · markiert.}}
+
+\vspace{4mm}
+\begin{longtable}{@{}r l r r r r r r r r r r r r r r r r r r@{}}
+\toprule
+\textbf{Nr} & \textbf{Name} & \textbf{Start} & \textbf{Jän} & \textbf{Feb} & \textbf{Mär} & \textbf{Apr} & \textbf{Mai} & \textbf{Jun} & \textbf{Jul} & \textbf{Aug} & \textbf{Sep} & \textbf{Okt} & \textbf{Nov} & \textbf{Dez} & \textbf{Soll} & \textbf{Ist} & \textbf{Diff} & \textbf{Saldo} & \textbf{Url.}\\
+\midrule
+\endhead
+{% for r in rows %}{{ r.personalnr }} & {{ r.name }} & {{ r.start }}{% for m in r.monate %} & {% if m.neg %}\textcolor{neg}{ {{- m.diff -}} }{% else %}{{ m.diff }}{% endif %}{% if m.geschlossen %}\,{\tiny\textcolor{muted}{·}}{% endif %}{% endfor %} & {{ r.soll }} & {{ r.ist }} & {% if r.diff_neg %}\textcolor{neg}{ {{- r.diff -}} }{% else %}{{ r.diff }}{% endif %} & \textbf{ {% if r.saldo_neg %}\textcolor{neg}{ {{- r.saldo -}} }{% else %}{{ r.saldo }}{% endif %} } & {{ r.urlaub }}\\
+{% endfor %}
+\bottomrule
+\end{longtable}
+
+\noindent{\scriptsize\textcolor{muted}{Start: Gleitzeitsaldo zu Jahresbeginn. Saldo: Stand zum Jahresende bzw. zum heutigen Tag, nach Übertragungen in Gutstundentöpfe. Url.: Resturlaub in Tagen.}}
+
+\end{document}

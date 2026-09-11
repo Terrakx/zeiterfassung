@@ -8,6 +8,8 @@
   let exports = $state<any[]>([]);
   let preview = $state<any>(null);
   let periods = $state<any[]>([]);
+  let jahr = $state(new Date().getFullYear());
+  let year = $state<any[]>([]);
   let error = $state('');
   let msg = $state('');
   let busy = $state(false);
@@ -23,7 +25,7 @@
       preview = null;
     } catch (e) { error = errMsg(e); }
   }
-  onMount(load);
+  onMount(() => { load(); loadYear(); });
 
   async function close(id: number) {
     busy = true; error = msg = '';
@@ -45,6 +47,9 @@
     busy = true; error = msg = '';
     try { const r: any = await api.post(`/export/bmd`, { monat }); msg = `Export erstellt: ${r.datei} (${r.zeilen} Zeilen)`; await load(); }
     catch (e) { error = errMsg(e); } finally { busy = false; }
+  }
+  async function loadYear() {
+    try { year = await api.get<any[]>(`/reports/year?jahr=${jahr}`); } catch (e) { error = errMsg(e); }
   }
   async function loadPreview() {
     error = '';
@@ -160,3 +165,31 @@
     </table>
   </div>
 {/if}
+
+<div class="page-head" style="margin-top:32px">
+  <h2 style="margin:0;font-size:24px">Jahresübersicht Gleitzeitsalden</h2>
+  <div class="row">
+    <div class="monthnav"><button onclick={() => { jahr--; loadYear(); }}>‹</button><span style="min-width:90px">{jahr}</span><button onclick={() => { jahr++; loadYear(); }}>›</button></div>
+    <a class="btn" href={`/api/reports/year/${jahr}/pdf`} target="_blank">Jahresübersicht PDF</a>
+  </div>
+</div>
+<div class="card tight table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th class="right">Start</th>{#each ['Jän','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'] as m}<th class="right">{m}</th>{/each}<th class="right">Soll</th><th class="right">Ist</th><th class="right">Diff</th><th class="right">Saldo</th><th class="right">Urlaub</th></tr></thead>
+    <tbody>
+      {#each year as y}
+        <tr>
+          <td><a href={`/admin/mitarbeiter/${y.employee.id}`} style="font-weight:500">{y.employee.name}</a></td>
+          <td class="right muted">{hm(y.saldo_start_min, true)}</td>
+          {#each y.monate as m}<td class="right" class:pos={m.diff_min > 0} class:neg={m.diff_min < 0} title={m.geschlossen ? 'abgeschlossen' : 'offen'}>{m.soll_min || m.diff_min ? hm(m.diff_min, true) : ''}{#if m.geschlossen}<span class="muted"> ·</span>{/if}</td>{/each}
+          <td class="right">{hm(y.soll_min)}</td>
+          <td class="right">{hm(y.ist_min + y.abwesenheit_min + y.feiertag_min)}</td>
+          <td class="right" class:pos={y.diff_min > 0} class:neg={y.diff_min < 0}>{hm(y.diff_min, true)}</td>
+          <td class="right" style="font-weight:600" class:pos={y.saldo_ende_min > 0} class:neg={y.saldo_ende_min < 0}>{hm(y.saldo_ende_min, true)}</td>
+          <td class="right">{y.urlaub_rest}</td>
+        </tr>
+      {:else}<tr><td colspan="19" class="muted">Keine Daten.</td></tr>{/each}
+    </tbody>
+  </table>
+  <div class="table-foot"><span>Differenz je Monat; · = Monat abgeschlossen. Saldo nach Übertragungen in Gutstundentöpfe.</span></div>
+</div>

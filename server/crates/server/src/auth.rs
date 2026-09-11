@@ -146,21 +146,40 @@ struct LoginReq {
 
 async fn login(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     jar: CookieJar,
     Json(req): Json<LoginReq>,
 ) -> ApiResult<(CookieJar, Json<Value>)> {
-    let emp = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE username = ? AND aktiv = 1")
-        .bind(req.username.trim())
+    let username = req.username.trim().to_lowercase();
+    let keys = [format!("login:{username}"), format!("ip:{}", crate::ratelimit::client_key(&headers))];
+    for k in &keys {
+        if let Some(secs) = state.limiter.locked(k) {
+            return Err(AppError::TooMany(format!("Zu viele Fehlversuche. Bitte in {} Minuten erneut versuchen.", secs.div_ceil(60))));
+        }
+    }
+    let emp = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE lower(username) = ? AND aktiv = 1")
+        .bind(&username)
         .fetch_optional(&state.db)
         .await?;
-    let Some(emp) = emp else {
-        // Gleiche Laufzeit wie eine echte Prüfung, damit Benutzernamen nicht erratbar sind.
-        let _ = verify_secret(&req.password, "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        return Err(AppError::Unauthorized);
+    let ok = match &emp {
+        Some(e) => e.password_hash.as_deref().map(|h| verify_secret(&req.password, h)).unwrap_or(false),
+        None => {
+            // Gleiche Laufzeit wie eine echte Prüfung, damit Benutzernamen nicht erratbar sind.
+            let _ = verify_secret(&req.password, "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+            false
+        }
     };
-    let ok = emp.password_hash.as_deref().map(|h| verify_secret(&req.password, h)).unwrap_or(false);
     if !ok {
+        for k in &keys {
+            if state.limiter.failure(k) {
+                db::audit(&state.db, None, "login_gesperrt", Some(k.clone()), None, None).await?;
+            }
+        }
         return Err(AppError::Unauthorized);
+    }
+    let emp = emp.unwrap();
+    for k in &keys {
+        state.limiter.success(k);
     }
     let token = create_session(&state.db, emp.id).await?;
     db::audit(&state.db, Some(emp.id), "login", None, None, None).await?;

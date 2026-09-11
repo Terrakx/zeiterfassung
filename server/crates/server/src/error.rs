@@ -13,6 +13,8 @@ pub enum AppError {
     BadRequest(String),
     #[error("{0}")]
     Conflict(String),
+    #[error("{0}")]
+    TooMany(String),
     #[error("Datenbankfehler: {0}")]
     Db(#[from] sqlx::Error),
     #[error("{0}")]
@@ -29,6 +31,7 @@ impl IntoResponse for AppError {
             AppError::NotFound => StatusCode::NOT_FOUND,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::Conflict(_) => StatusCode::CONFLICT,
+            AppError::TooMany(_) => StatusCode::TOO_MANY_REQUESTS,
             AppError::Db(e) => {
                 tracing::error!(error = ?e, "db error");
                 StatusCode::INTERNAL_SERVER_ERROR

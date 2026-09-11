@@ -28,6 +28,7 @@ use crate::{
 const TEMPLATE: &str = include_str!("../../../../latex/monatsbericht.tex.j2");
 const TEMPLATE_URLAUB: &str = include_str!("../../../../latex/urlaubskartei.tex.j2");
 const TEMPLATE_URLAUB_UEBERSICHT: &str = include_str!("../../../../latex/urlaubsuebersicht.tex.j2");
+const TEMPLATE_JAHR: &str = include_str!("../../../../latex/jahresuebersicht.tex.j2");
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -39,6 +40,64 @@ pub fn router() -> Router<AppState> {
         .route("/reports/month/{monat}/zip", get(month_zip))
         .route("/reports/vacation/{id}/pdf", get(vacation_pdf))
         .route("/reports/vacation-overview/pdf", get(vacation_overview_pdf))
+        .route("/reports/year", get(year_json))
+        .route("/reports/year/{jahr}/pdf", get(year_pdf))
+}
+
+#[derive(Deserialize)]
+struct YearQuery {
+    jahr: i32,
+}
+
+async fn active_employees_in_year(db: &SqlitePool, jahr: i32) -> ApiResult<Vec<Employee>> {
+    let emps = sqlx::query_as::<_, Employee>(
+        "SELECT * FROM employees WHERE personalnr != '0' AND eintritt <= ? AND (austritt IS NULL OR austritt >= ?) ORDER BY nachname, vorname",
+    )
+    .bind(format!("{jahr}-12-31")).bind(format!("{jahr}-01-01"))
+    .fetch_all(db).await?;
+    Ok(emps)
+}
+
+async fn year_json(State(state): State<AppState>, AdminUser(_): AdminUser, Query(q): Query<YearQuery>) -> ApiResult<Json<Vec<calc::YearView>>> {
+    let mut out = Vec::new();
+    for e in active_employees_in_year(&state.db, q.jahr).await? {
+        out.push(calc::year_view(&state.db, &e, q.jahr).await?);
+    }
+    Ok(Json(out))
+}
+
+fn signed_or_empty(min: i32) -> String {
+    if min == 0 { "0:00".into() } else { signed(min) }
+}
+
+async fn year_pdf(State(state): State<AppState>, AdminUser(_): AdminUser, AxPath(jahr): AxPath<i32>) -> ApiResult<Response> {
+    let s = settings::load(&state.db).await?;
+    let mut rows = Vec::new();
+    for e in active_employees_in_year(&state.db, jahr).await? {
+        let y = calc::year_view(&state.db, &e, jahr).await?;
+        rows.push(json!({
+            "personalnr": tex(&e.personalnr),
+            "name": tex(&e.display_name()),
+            "start": signed(y.saldo_start_min),
+            "monate": y.monate.iter().map(|m| json!({
+                "diff": if m.soll_min == 0 && m.diff_min == 0 { String::new() } else { signed_or_empty(m.diff_min) },
+                "neg": m.diff_min < 0,
+                "geschlossen": m.geschlossen,
+            })).collect::<Vec<_>>(),
+            "soll": time::fmt_hm(y.soll_min),
+            "ist": time::fmt_hm(y.ist_min + y.abwesenheit_min + y.feiertag_min),
+            "diff": signed(y.diff_min),
+            "diff_neg": y.diff_min < 0,
+            "saldo": signed(y.saldo_ende_min),
+            "saldo_neg": y.saldo_ende_min < 0,
+            "urlaub": fmt_days(y.urlaub_rest),
+        }));
+    }
+    let mut ctx = base_ctx(&state.data_dir, &s);
+    ctx.insert("jahr".into(), json!(jahr));
+    ctx.insert("rows".into(), json!(rows));
+    let bytes = render_template(&state.data_dir, TEMPLATE_JAHR, &Value::Object(ctx)).await?;
+    Ok(pdf_response(bytes, &format!("Jahresuebersicht_{jahr}.pdf")))
 }
 
 #[derive(Deserialize)]

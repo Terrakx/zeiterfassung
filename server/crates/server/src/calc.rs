@@ -307,6 +307,86 @@ pub async fn month_view(db: &SqlitePool, emp: &Employee, monat: &str) -> ApiResu
     })
 }
 
+#[derive(Serialize)]
+pub struct YearMonth {
+    pub monat: String,
+    pub soll_min: i32,
+    pub ist_min: i32,
+    pub abwesenheit_min: i32,
+    pub feiertag_min: i32,
+    pub diff_min: i32,
+    pub uebertragen_min: i32,
+    pub saldo_ende_min: i32,
+    pub geschlossen: bool,
+    pub warnungen: usize,
+}
+
+#[derive(Serialize)]
+pub struct YearView {
+    pub jahr: i32,
+    pub employee: Value,
+    pub saldo_start_min: i32,
+    pub monate: Vec<YearMonth>,
+    pub soll_min: i32,
+    pub ist_min: i32,
+    pub abwesenheit_min: i32,
+    pub feiertag_min: i32,
+    pub diff_min: i32,
+    pub saldo_ende_min: i32,
+    pub urlaub_rest: f64,
+}
+
+/// Jahresübersicht eines Mitarbeiters: ein Context für das ganze Jahr, Summen je Monat.
+pub async fn year_view(db: &SqlitePool, emp: &Employee, jahr: i32) -> ApiResult<YearView> {
+    let from = NaiveDate::from_ymd_opt(jahr, 1, 1).ok_or_else(|| bad("Jahr ungültig"))?;
+    let to = NaiveDate::from_ymd_opt(jahr, 12, 31).unwrap();
+    let ctx = Context::load(db, emp, from, to).await?;
+    let days = ctx.days(from, to);
+    let saldo_start = saldo_until(db, emp, from - Duration::days(1)).await?;
+    let entries: Vec<(String, String, i64)> = sqlx::query_as(
+        "SELECT substr(datum,1,7), art, minuten FROM credit_hours_entries WHERE employee_id = ? AND datum BETWEEN ? AND ? AND art IN ('periodenabschluss','saldo')",
+    )
+    .bind(emp.id).bind(time::fmt_date(from)).bind(time::fmt_date(to)).fetch_all(db).await?;
+    let closed: Vec<(String,)> = sqlx::query_as("SELECT monat FROM month_closures WHERE employee_id = ? AND monat LIKE ?")
+        .bind(emp.id).bind(format!("{jahr}-%")).fetch_all(db).await?;
+    let mut saldo = saldo_start;
+    let mut monate = Vec::new();
+    for m in 1..=12u32 {
+        let key = format!("{jahr}-{m:02}");
+        let md: Vec<&DayView> = days.iter().filter(|d| d.result.date.month() == m).collect();
+        let diff: i32 = md.iter().map(|d| d.result.diff_min).sum();
+        let transferred: i32 = entries.iter().filter(|e| e.0 == key && e.1 == "periodenabschluss").map(|e| e.2 as i32).sum();
+        let manual: i32 = entries.iter().filter(|e| e.0 == key && e.1 == "saldo").map(|e| e.2 as i32).sum();
+        saldo += diff - transferred + manual;
+        monate.push(YearMonth {
+            monat: key.clone(),
+            soll_min: md.iter().map(|d| d.result.target_min).sum(),
+            ist_min: md.iter().map(|d| d.result.worked_min).sum(),
+            abwesenheit_min: md.iter().map(|d| d.result.paid_absence_min).sum(),
+            feiertag_min: md.iter().map(|d| d.result.holiday_min).sum(),
+            diff_min: diff,
+            uebertragen_min: transferred,
+            saldo_ende_min: saldo,
+            geschlossen: closed.iter().any(|c| c.0 == key),
+            warnungen: md.iter().map(|d| d.result.warnings.len()).sum(),
+        });
+    }
+    let urlaub = absences::vacation_account(db, emp, to.min(time::today_local())).await?;
+    Ok(YearView {
+        jahr,
+        employee: json!({"id": emp.id, "name": emp.display_name(), "personalnr": emp.personalnr}),
+        saldo_start_min: saldo_start,
+        soll_min: monate.iter().map(|x| x.soll_min).sum(),
+        ist_min: monate.iter().map(|x| x.ist_min).sum(),
+        abwesenheit_min: monate.iter().map(|x| x.abwesenheit_min).sum(),
+        feiertag_min: monate.iter().map(|x| x.feiertag_min).sum(),
+        diff_min: monate.iter().map(|x| x.diff_min).sum(),
+        saldo_ende_min: saldo,
+        urlaub_rest: urlaub["rest"].as_f64().unwrap_or(0.0),
+        monate,
+    })
+}
+
 #[derive(Deserialize)]
 pub struct MonthQuery {
     pub monat: String,
