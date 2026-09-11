@@ -51,6 +51,13 @@
   </select>
 </div>
 {#if error}<div class="alert err">{error}</div>{/if}
+{#if status === 'beantragt'}
+  {#if list.length + corrections.length}
+    <div class="alert warn">{list.length + corrections.length} {list.length + corrections.length === 1 ? 'offener Vorgang wartet' : 'offene Vorgänge warten'} auf Ihre Entscheidung: {list.length} Abwesenheiten, {corrections.length} Korrekturen.</div>
+  {:else}
+    <div class="alert ok">Nichts zu erledigen, alle Anträge sind entschieden.</div>
+  {/if}
+{/if}
 <div class="card tight table-wrap">
   <table>
     <thead><tr><th>Mitarbeiter</th><th>Art</th><th>Von</th><th>Bis</th><th>Einheit</th><th>Kommentar</th><th>Status</th><th></th></tr></thead>

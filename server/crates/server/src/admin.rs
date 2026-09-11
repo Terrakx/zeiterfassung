@@ -17,6 +17,18 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/admin/audit", get(audit))
         .route("/admin/backup", get(backup))
+        .route("/admin/open-count", get(open_count))
+}
+
+/// Offene Vorgänge für die Verwaltung (Badge in der Tab-Leiste).
+async fn open_count(State(state): State<AppState>, AdminUser(_): AdminUser) -> ApiResult<Json<Value>> {
+    let (abw, korr): (i64, i64) = sqlx::query_as(
+        "SELECT (SELECT COUNT(*) FROM absences a JOIN employees e ON e.id = a.employee_id WHERE a.status = 'beantragt' AND e.aktiv = 1),
+                (SELECT COUNT(*) FROM punch_requests p JOIN employees e ON e.id = p.employee_id WHERE p.status = 'beantragt' AND e.aktiv = 1)",
+    )
+    .fetch_one(&state.db)
+    .await?;
+    Ok(Json(json!({"abwesenheiten": abw, "korrekturen": korr, "gesamt": abw + korr})))
 }
 
 #[derive(Deserialize)]
