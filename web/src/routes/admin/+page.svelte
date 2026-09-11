@@ -2,10 +2,16 @@
   import { onMount } from 'svelte';
   import { api, errMsg } from '$lib/api';
   import { hm } from '$lib/fmt';
+  import TeamCalendar from '$lib/TeamCalendar.svelte';
   let rows = $state<any[]>([]);
   let error = $state('');
+  let clockDiff = $state<number | null>(null);
   onMount(async () => {
-    try { rows = await api.get('/calc/overview'); } catch (e) { error = errMsg(e); }
+    try {
+      const [r, t]: any[] = await Promise.all([api.get('/calc/overview'), api.get('/time')]);
+      rows = r;
+      clockDiff = Math.round((Date.now() - new Date(t.utc).getTime()) / 1000);
+    } catch (e) { error = errMsg(e); }
   });
   const offen = $derived(rows.reduce((s, r) => s + r.offene_antraege, 0));
   const anwesend = $derived(rows.filter((r) => r.zustand !== 'draussen').length);
@@ -17,6 +23,9 @@
   <div class="row"><span class="page-date">{today}</span><a class="btn" href="/api/reports/vacation-overview/pdf" target="_blank">Urlaubsübersicht PDF</a></div>
 </div>
 {#if error}<div class="alert err">{error}</div>{/if}
+{#if clockDiff !== null && Math.abs(clockDiff) > 120}
+  <div class="alert warn">Die Serveruhr weicht um {Math.round(Math.abs(clockDiff) / 60)} Minuten von diesem Gerät ab. Stempelzeiten kommen vom Server, bitte die Uhr des Servers prüfen.</div>
+{/if}
 {#if offen}<div class="alert info"><span><a href="/admin/antraege">{offen} offene Anträge</a> warten auf Entscheidung.</span></div>{/if}
 <div class="card tight table-wrap">
   <table>
@@ -43,3 +52,5 @@
   </table>
   <div class="table-foot"><span>{rows.length} Mitarbeitende · {anwesend} anwesend</span></div>
 </div>
+
+<TeamCalendar />

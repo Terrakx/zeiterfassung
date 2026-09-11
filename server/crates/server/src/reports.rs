@@ -613,6 +613,9 @@ fn warning_de(w: &timecard_domain::Warning) -> String {
         WorkOnHoliday => "Arbeit am Feiertag".into(),
         WorkOnSunday => "Arbeit am Sonntag".into(),
         AbsenceAndPunches => "Abwesenheit und Stempelung am selben Tag".into(),
+        OutsideFlexFrame { at } => format!("Stempelung {} außerhalb des Gleitzeitrahmens", at.format("%H:%M")),
+        WeekOver50h { worked_min } => format!("Wochenarbeitszeit über 50 h ({})", time::fmt_hm(*worked_min)),
+        WeekOver60h { worked_min } => format!("Wochenarbeitszeit über 60 h ({}), § 9 AZG", time::fmt_hm(*worked_min)),
     }
 }
 

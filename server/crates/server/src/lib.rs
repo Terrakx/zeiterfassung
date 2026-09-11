@@ -82,16 +82,22 @@ pub fn build_app(state: AppState) -> Router {
         .merge(reports::router())
         .merge(export::router())
         .merge(admin::router())
-        .route("/health", get(|| async { "ok" }));
+        .route("/health", get(|| async { "ok" }))
+        .route("/time", get(|| async { axum::Json(serde_json::json!({"utc": time::fmt_utc(time::now_utc())})) }));
 
-    // Inline-Styles kommen aus den Svelte-Komponenten, Schriften und Skripte sind gebündelt.
-    let csp = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; \
-               script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+    // Inline-Styles kommen aus den Svelte-Komponenten, Schriften und Skripte sind gebündelt. Das
+    // Startskript von SvelteKit steht inline in der index.html und wird über seinen Hash erlaubt.
+    let hashes: String = statics::inline_script_hashes().iter().map(|h| format!(" 'sha256-{h}'")).collect();
+    let csp = format!(
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; \
+         script-src 'self'{hashes}; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    );
+    let csp = HeaderValue::from_str(&csp).expect("csp header");
 
     Router::new()
         .nest("/api", api)
         .fallback(statics::serve)
-        .layer(SetResponseHeaderLayer::if_not_present(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static(csp)))
+        .layer(SetResponseHeaderLayer::if_not_present(header::CONTENT_SECURITY_POLICY, csp))
         .layer(SetResponseHeaderLayer::if_not_present(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff")))
         .layer(SetResponseHeaderLayer::if_not_present(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY")))
         .layer(SetResponseHeaderLayer::if_not_present(header::REFERRER_POLICY, HeaderValue::from_static("same-origin")))
@@ -108,7 +114,15 @@ pub fn spawn_housekeeping(state: AppState) {
             if let Err(e) = sqlx::query("DELETE FROM sessions WHERE expires_at < ?").bind(&now).execute(&state.db).await {
                 tracing::warn!("Session-Bereinigung fehlgeschlagen: {e}");
             }
-            let _ = std::fs::remove_dir_all(state.data_dir.join("tmp"));
+            // Temporäre LaTeX-Verzeichnisse, die älter als eine Stunde sind (laufende Kompilate bleiben)
+            if let Ok(entries) = std::fs::read_dir(state.data_dir.join("tmp")) {
+                for e in entries.flatten() {
+                    let old = e.metadata().and_then(|m| m.modified()).map(|t| t.elapsed().map(|d| d.as_secs() > 3600).unwrap_or(false)).unwrap_or(false);
+                    if old && e.path().is_dir() {
+                        let _ = std::fs::remove_dir_all(e.path());
+                    }
+                }
+            }
             state.limiter.prune();
             tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
         }

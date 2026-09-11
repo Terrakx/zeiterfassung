@@ -46,7 +46,8 @@ Umgebungsvariablen: `TIMECARD_DATA_DIR` (Standard `./data`), `TIMECARD_BIND` (St
 
 Frontend-Entwicklung mit Hot-Reload: `cd web && npm run dev` (Proxy auf Port 8090, den Server
 mit `TIMECARD_BIND=127.0.0.1:8090 cargo run` starten). Im Debug-Build liest der Server `web/build`
-zur Laufzeit, im Release-Build ist es einkompiliert.
+zur Laufzeit, im Release-Build ist es einkompiliert. Nach `npm run build` den Server neu starten,
+weil der Hash des SvelteKit-Startskripts für die Content Security Policy beim Start berechnet wird.
 
 Tests: `cd server && cargo test` (Unit-Tests des Rechenkerns und Integrationstests der API mit In-Memory-Datenbank).
 
@@ -71,8 +72,9 @@ Die Serveruhr bestimmt die Stempelzeit. Ohne NTP-Zugang die Hardware-Uhr regelm�
   die Verwaltung mit Begründung; Stempelungen werden nie gelöscht, nur storniert (Audit-Log).
 - Pause: über 6 h Arbeit mindestens 30 min. Fehlende Pause wird gemeldet; automatischer Abzug nur,
   wenn im Wochenmodell aktiviert (zulässig bei betrieblich festgelegter Pausenlage).
-- Warnungen (kein Blockieren): über 10 h, über 12 h, Ruhezeit unter 11 h, Arbeit an Sonn- und
-  Feiertagen, offene oder ungültige Stempelfolge.
+- Warnungen (kein Blockieren): über 10 h, über 12 h am Tag, über 50 h und 60 h in der Woche,
+  Ruhezeit unter 11 h, Arbeit an Sonn- und Feiertagen, Stempelung außerhalb des Gleitzeitrahmens,
+  offene oder ungültige Stempelfolge.
 - Feiertag: Sollzeit gilt als bezahlt (§ 9 ARG); Arbeit am Feiertag zählt zusätzlich.
 - Gleitzeitsaldo = Summe der Tagesdifferenzen ab „Zeiterfassung ab“, abzüglich Übertragungen in
   Gutstundentöpfe, zuzüglich manueller Saldo-Buchungen (Anfangswert bei Systemstart).
@@ -118,7 +120,8 @@ Backup-Download, Sperre nach fünf Fehlversuchen bei Login und Terminal-PIN (15 
 Sicherheitsheader (CSP, Frame-Schutz), stündliche Bereinigung abgelaufener Sessions.
 
 Für die Abstimmung mit der Lohnverrechnung liegen Musterdateien und eine Prüfliste unter
-`docs/bmd/`.
+`docs/bmd/`. Handbücher: [docs/HANDBUCH-ADMIN.md](docs/HANDBUCH-ADMIN.md) und
+[docs/HANDBUCH-MITARBEITER.md](docs/HANDBUCH-MITARBEITER.md).
 
 Noch nicht erledigt oder zu klären:
 

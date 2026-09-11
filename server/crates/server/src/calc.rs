@@ -28,6 +28,38 @@ pub fn router() -> Router<AppState> {
         .route("/calc/month", get(month_own))
         .route("/employees/{id}/month", get(month_admin))
         .route("/calc/overview", get(overview))
+        .route("/admin/calendar", get(calendar))
+}
+
+/// Abwesenheitskalender aller aktiven Mitarbeitenden für einen Monat (beantragt und genehmigt).
+async fn calendar(State(state): State<AppState>, AdminUser(_): AdminUser, Query(q): Query<MonthQuery>) -> ApiResult<Json<Value>> {
+    let (from, to) = month_range(&q.monat)?;
+    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND personalnr != '0' ORDER BY nachname, vorname")
+        .fetch_all(&state.db).await?;
+    let hol: Vec<Value> = holidays::for_year(&state.db, from.year()).await?
+        .into_iter().filter(|h| h.date >= from && h.date <= to)
+        .map(|h| json!({"datum": time::fmt_date(h.date), "name": h.name})).collect();
+    let mut rows = Vec::new();
+    for e in emps {
+        let abs = sqlx::query_as::<_, AbsenceRow>(
+            "SELECT * FROM absences WHERE employee_id = ? AND status IN ('beantragt','genehmigt') AND von <= ? AND bis >= ? ORDER BY von",
+        )
+        .bind(e.id).bind(time::fmt_date(to)).bind(time::fmt_date(from)).fetch_all(&state.db).await?;
+        let schedules = db::schedules_for(&state.db, e.id).await?;
+        let mut days = serde_json::Map::new();
+        let mut d = from;
+        while d <= to {
+            let working = db::schedule_at(&schedules, d).map(|s| s.week_model().is_working_day(d)).unwrap_or(false);
+            if let Some(a) = abs.iter().find(|a| a.covers(d)) {
+                days.insert(time::fmt_date(d), json!({"art": a.art, "label": a.label(), "status": a.status, "einheit": a.einheit}));
+            } else if !working {
+                days.insert(time::fmt_date(d), json!({"frei": true}));
+            }
+            d += Duration::days(1);
+        }
+        rows.push(json!({"id": e.id, "name": e.display_name(), "personalnr": e.personalnr, "tage": days}));
+    }
+    Ok(Json(json!({"monat": q.monat, "von": time::fmt_date(from), "bis": time::fmt_date(to), "feiertage": hol, "rows": rows})))
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -71,8 +103,8 @@ impl Context {
                 hol.insert(h.date, h.name);
             }
         }
-        // Einen Tag früher laden, um die Ruhezeit zum Vortag prüfen zu können.
-        let punches = punches::punches_between(db, emp.id, from - Duration::days(1), to).await?;
+        // Eine Woche früher laden: Ruhezeit zum Vortag und Wochensummen am Monatsanfang.
+        let punches = punches::punches_between(db, emp.id, from - Duration::days(7), to).await?;
         let absences = absences::approved_between(db, emp.id, from, to).await?;
         let s = settings::load(db).await?;
         let pause_rule = PauseRule {
@@ -92,6 +124,16 @@ impl Context {
             Some(s) => (s.week_model().target_for(date), s.pause_auto),
             None => (0, false),
         }
+    }
+
+    fn flex_frame(&self, date: NaiveDate) -> Option<(chrono::NaiveTime, chrono::NaiveTime)> {
+        let s = db::schedule_at(&self.schedules, date)?;
+        if !s.gleitzeit {
+            return None;
+        }
+        let von = chrono::NaiveTime::parse_from_str(s.gleitzeit_von.as_deref()?, "%H:%M").ok()?;
+        let bis = chrono::NaiveTime::parse_from_str(s.gleitzeit_bis.as_deref()?, "%H:%M").ok()?;
+        Some((von, bis))
     }
 
     pub fn day(&self, date: NaiveDate) -> DayView {
@@ -146,6 +188,7 @@ impl Context {
             absences: &abs_minutes,
             pause_rule: rule,
             previous_day_end: prev_end,
+            flex_frame: self.flex_frame(date),
         });
         if future {
             result.diff_min = 0;
@@ -164,12 +207,43 @@ impl Context {
         }
     }
 
+    /// Tage im Zeitraum, ergänzt um Wochenwarnungen (Mo–So, an den letzten Arbeitstag der Woche gehängt).
+    /// Der Context muss dafür die volle Woche des ersten Tages enthalten; sonst wird die Woche
+    /// nur mit den vorhandenen Tagen bewertet.
     pub fn days(&self, from: NaiveDate, to: NaiveDate) -> Vec<DayView> {
         let mut out = Vec::new();
         let mut d = from;
         while d <= to {
             out.push(self.day(d));
             d += Duration::days(1);
+        }
+        // Wochensummen: Woche beginnt Montag. Tage vor `from` derselben Woche werden mitgerechnet,
+        // damit ein Monatsanfang mitten in der Woche korrekt bewertet wird.
+        let mut i = 0;
+        while i < out.len() {
+            let week_start = out[i].result.date - Duration::days(out[i].result.date.weekday().num_days_from_monday() as i64);
+            let week_end = week_start + Duration::days(6);
+            let mut sum: i32 = 0;
+            let mut d = week_start;
+            while d < from {
+                sum += self.day(d).result.worked_min;
+                d += Duration::days(1);
+            }
+            let mut last_idx = i;
+            let mut j = i;
+            while j < out.len() && out[j].result.date <= week_end {
+                sum += out[j].result.worked_min;
+                if out[j].result.worked_min > 0 {
+                    last_idx = j;
+                }
+                j += 1;
+            }
+            if sum > 3600 {
+                out[last_idx].result.warnings.push(timecard_domain::Warning::WeekOver60h { worked_min: sum });
+            } else if sum > 3000 {
+                out[last_idx].result.warnings.push(timecard_domain::Warning::WeekOver50h { worked_min: sum });
+            }
+            i = j;
         }
         out
     }

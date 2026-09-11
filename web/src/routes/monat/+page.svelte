@@ -55,6 +55,8 @@
   </div>
   {#if month?.geschlossen?.pdf}
     <a class="btn" href={`/api/reports/month/${month.employee.id}/${monat}/pdf`} target="_blank">Monatsbericht PDF</a>
+  {:else if month}
+    <a class="btn" href={`/api/reports/month/${month.employee.id}/${monat}/pdf?vorschau=1`} target="_blank">Vorschau PDF</a>
   {/if}
 </div>
 {#if error}<div class="alert err">{error}</div>{/if}

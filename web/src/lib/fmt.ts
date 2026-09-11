@@ -53,7 +53,10 @@ export const WARNING_TEXT: Record<string, (w: any) => string> = {
   rest_time_short: (w) => `Ruhezeit zum Vortag unter 11 Stunden (${hm(w.rest_min)}), § 12 AZG`,
   work_on_holiday: () => 'Arbeit an einem Feiertag',
   work_on_sunday: () => 'Arbeit an einem Sonntag',
-  absence_and_punches: () => 'Ganztägige Abwesenheit und Stempelungen am selben Tag'
+  absence_and_punches: () => 'Ganztägige Abwesenheit und Stempelungen am selben Tag',
+  outside_flex_frame: (w) => `Stempelung ${w.at.slice(0, 5)} außerhalb des Gleitzeitrahmens`,
+  week_over50h: (w) => `Wochenarbeitszeit über 50 Stunden (${hm(w.worked_min)})`,
+  week_over60h: (w) => `Wochenarbeitszeit über 60 Stunden (${hm(w.worked_min)}), § 9 AZG`
 };
 
 export function warningText(w: any): string {

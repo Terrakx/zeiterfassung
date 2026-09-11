@@ -46,6 +46,12 @@ pub enum Warning {
     WorkOnSunday,
     /// Abwesenheit und Stempelung am selben Tag.
     AbsenceAndPunches,
+    /// Stempelung außerhalb des Gleitzeitrahmens (§ 4b AZG: Überstunden).
+    OutsideFlexFrame { at: NaiveTime },
+    /// Wochenarbeitszeit über 50 Stunden (§ 9 Abs 1 AZG: Ablehnungsrecht ab 50 h).
+    WeekOver50h { worked_min: i32 },
+    /// Wochenarbeitszeit über 60 Stunden (§ 9 Abs 1 AZG Höchstgrenze).
+    WeekOver60h { worked_min: i32 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -68,6 +74,8 @@ pub struct DayInput<'a> {
     pub pause_rule: PauseRule,
     /// Ende der letzten Arbeitszeit des Vortages (Lokalzeit) für die Ruhezeitprüfung.
     pub previous_day_end: Option<NaiveDateTime>,
+    /// Gleitzeitrahmen (von, bis); Stempelungen außerhalb werden gemeldet.
+    pub flex_frame: Option<(NaiveTime, NaiveTime)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -182,6 +190,15 @@ pub fn compute_day(input: &DayInput) -> DayResult {
         }
     }
 
+    if let Some((von, bis)) = input.flex_frame {
+        for p in input.punches {
+            let t = p.at.time();
+            if matches!(p.kind, PunchKind::ClockIn | PunchKind::ClockOut) && (t < von || t > bis) {
+                warnings.push(Warning::OutsideFlexFrame { at: t });
+            }
+        }
+    }
+
     let paid_absence: i32 = input
         .absences
         .iter()
@@ -261,7 +278,17 @@ mod tests {
             absences,
             pause_rule: PauseRule::default(),
             previous_day_end: None,
+            flex_frame: None,
         }
+    }
+
+    #[test]
+    fn outside_flex_frame_is_flagged() {
+        let punches = [p(6, 30, PunchKind::ClockIn), p(15, 0, PunchKind::ClockOut)];
+        let mut input = base(&punches, &[]);
+        input.flex_frame = Some((NaiveTime::from_hms_opt(7, 0, 0).unwrap(), NaiveTime::from_hms_opt(19, 0, 0).unwrap()));
+        let r = compute_day(&input);
+        assert!(r.warnings.contains(&Warning::OutsideFlexFrame { at: NaiveTime::from_hms_opt(6, 30, 0).unwrap() }));
     }
 
     #[test]
