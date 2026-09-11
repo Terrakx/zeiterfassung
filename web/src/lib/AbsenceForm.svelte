@@ -6,7 +6,7 @@
   interface Props {
     /** Admin bucht für employeeId, sonst eigener Antrag */
     employeeId?: number;
-    onsaved?: () => void;
+    onsaved?: (msg: string) => void;
   }
   let { employeeId, onsaved }: Props = $props();
   const admin = $derived(employeeId !== undefined);
@@ -38,8 +38,9 @@
       const body = { art, von, bis, einheit, wert: einheit === 'stunden' ? wert : undefined, kommentar };
       const r: any = admin ? await api.post(`/employees/${employeeId}/absences`, body) : await api.post('/absences', body);
       hinweise = r?.hinweise ?? [];
+      const label = kinds.find((k) => k.art === art)?.label ?? art;
       kommentar = '';
-      onsaved?.();
+      onsaved?.(admin ? `${label} gebucht.` : `Antrag „${label}“ von ${von.split('-').reverse().join('.')} bis ${bis.split('-').reverse().join('.')} gestellt. Er wird von der Verwaltung geprüft und erscheint unten mit Status „offen“.`);
     } catch (err) {
       error = errMsg(err);
     } finally {

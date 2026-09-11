@@ -8,8 +8,10 @@
   let list = $state<any[]>([]);
   let account = $state<any>(null);
   let error = $state('');
+  let msg = $state('');
 
   async function load() {
+    error = '';
     const y = new Date().getFullYear();
     try {
       [list, account] = await Promise.all([
@@ -26,21 +28,24 @@
     if (!confirm('Antrag zurückziehen?')) return;
     try {
       await api.post(`/absences/${id}/withdraw`);
+      msg = 'Antrag zurückgezogen.';
       await load();
     } catch (e) {
       error = errMsg(e);
     }
   }
+  const offen = $derived(list.filter((a) => a.status === 'beantragt').length);
   const badge = (s: string) => (s === 'genehmigt' ? 'ok' : s === 'beantragt' ? 'warn' : s === 'abgelehnt' ? 'err' : '');
 </script>
 
 <div class="page-head"><h1>Abwesenheiten</h1></div>
 {#if error}<div class="alert err">{error}</div>{/if}
+{#if msg}<div class="alert ok">{msg}</div>{/if}
 
 <div class="grid cols-2">
   <div class="card" style="margin:0">
     <div class="card-title">Antrag stellen</div>
-    <AbsenceForm onsaved={load} />
+    <AbsenceForm onsaved={(m) => { msg = m; load(); }} />
   </div>
   {#if account}
     <div class="card" style="margin:0">
@@ -55,6 +60,7 @@
           <tr><td style="font-weight:600">Rest</td><td class="right" style="font-weight:600">{days(account.urlaub.rest)} Tage</td></tr>
         </tbody>
       </table>
+      {#if offen}<p class="small" style="margin:8px 0 0"><span class="badge warn">{offen} offene {offen === 1 ? 'Antrag' : 'Anträge'}</span> <span class="muted">noch nicht im Konto berücksichtigt</span></p>{/if}
       {#if account.urlaub.naechster_verfall}
         <p class="small" style="color:var(--warn)">{days(account.urlaub.naechster_verfall.tage)} Tage aus {account.urlaub.naechster_verfall.aus_urlaubsjahr.slice(0, 4)} verfallen am {dateDe(account.urlaub.naechster_verfall.am)}.</p>
       {/if}
@@ -71,7 +77,8 @@
   {/if}
 </div>
 
-<div class="card tight table-wrap" style="margin-top:20px">
+<h2>Meine Anträge und Abwesenheiten</h2>
+<div class="card tight table-wrap">
   <table>
     <thead><tr><th>Art</th><th>Von</th><th>Bis</th><th>Einheit</th><th>Status</th><th>Kommentar</th><th></th></tr></thead>
     <tbody>

@@ -229,8 +229,8 @@ pub struct RangeQuery {
 pub fn parse_range(q: &RangeQuery) -> ApiResult<(NaiveDate, NaiveDate)> {
     let from = time::parse_date(&q.von).ok_or_else(|| bad("von ungültig"))?;
     let to = time::parse_date(&q.bis).ok_or_else(|| bad("bis ungültig"))?;
-    if to < from || (to - from).num_days() > 400 {
-        return Err(bad("Zeitraum ungültig"));
+    if to < from || (to - from).num_days() > 1100 {
+        return Err(bad("Zeitraum ungültig (maximal drei Jahre)"));
     }
     Ok((from, to))
 }

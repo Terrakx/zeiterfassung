@@ -246,3 +246,22 @@ async fn saldo_snapshot_matches_full_recalculation() {
     let (st, _, _) = c.call("POST", &format!("/employees/{id}/schedules"), Some(json!({"gueltig_ab": "2026-01-15", "stunden": [4,4,4,4,4,0,0]}))).await;
     assert_eq!(st, StatusCode::CONFLICT);
 }
+
+#[tokio::test]
+async fn employee_sees_own_request_in_three_year_list() {
+    let mut c = Client::new().await;
+    c.login("admin", "admin-test").await;
+    create_employee(&mut c, "7", "maria", [8.0, 8.0, 8.0, 8.0, 8.0, 0.0, 0.0]).await;
+    c.cookie = None;
+    c.login("maria", "geheim123").await;
+    let (st, r, _) = c.call("POST", "/absences", Some(json!({"art": "urlaub", "von": "2026-11-02", "bis": "2026-11-06"}))).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    let (st, list, _) = c.call("GET", "/absences?von=2025-01-01&bis=2027-12-31", None).await;
+    assert_eq!(st, StatusCode::OK, "{list}");
+    assert_eq!(list.as_array().unwrap().len(), 1);
+    assert_eq!(list[0]["status"], "beantragt");
+    let id = list[0]["id"].as_i64().unwrap();
+    assert_eq!(c.call("POST", &format!("/absences/{id}/withdraw"), None).await.0, StatusCode::OK);
+    let (_, list, _) = c.call("GET", "/absences?von=2025-01-01&bis=2027-12-31", None).await;
+    assert_eq!(list[0]["status"], "storniert");
+}

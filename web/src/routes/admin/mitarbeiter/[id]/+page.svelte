@@ -230,7 +230,7 @@
 
   {:else if tab === 'abwesenheit'}
     <div class="grid cols-2">
-      <div class="card" style="margin:0"><div class="card-title">Abwesenheit buchen</div><AbsenceForm employeeId={id} onsaved={loadAbs} /></div>
+      <div class="card" style="margin:0"><div class="card-title">Abwesenheit buchen</div><AbsenceForm employeeId={id} onsaved={(m) => { msg = m; loadAbs(); }} /></div>
       <div class="card tight table-wrap" style="margin:0">
         <table>
           <thead><tr><th>Art</th><th>Von</th><th>Bis</th><th>Status</th><th></th></tr></thead>
