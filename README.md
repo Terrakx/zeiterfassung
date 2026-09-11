@@ -17,7 +17,7 @@ Der Umsetzungsplan mit Rechtsrahmen, BMD-Feldregeln und offenen Fragen steht in
 | `server/crates/domain` | Rechenkern ohne IO: Wochenmodell, Feiertage (§ 7 ARG), Tagesberechnung, Pausenregel (§ 11 AZG), Warnungen (§ 9, § 12 AZG), Urlaubstage, Abwesenheitsarten mit BMD-Codes. Unit-Tests. |
 | `server/crates/server` | axum-API, SQLite (sqlx, Migrationen), Sessions, Stammdaten, Stempeln, Abwesenheiten, Konten, Monatsabschluss, LaTeX-PDF, BMD-CSV. Liefert das Frontend aus. |
 | `server/migrations` | Datenbankschema |
-| `web` | SvelteKit-Frontend (static adapter), wird in den Server eingebettet |
+| `web` | SvelteKit-Frontend (static adapter), wird in den Server eingebettet. Design nach `docs/design` (Claude-Design-Handoff), Schrift IBM Plex Sans lokal gebündelt |
 | `latex` | PDF-Vorlage des Monatsberichts (minijinja + LuaLaTeX) |
 | `deploy` | Dockerfile, Compose, Caddyfile, Backup-Skript |
 | `infos` | Kundenunterlagen (BMD-Dokus, Arbeitszeitrecht) |

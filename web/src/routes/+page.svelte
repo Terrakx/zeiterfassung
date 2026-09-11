@@ -1,21 +1,25 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { api, errMsg } from '$lib/api';
-  import { hm, PUNCH_LABELS, warningText, dateDe } from '$lib/fmt';
+  import { hm, PUNCH_LABELS, warningText, days } from '$lib/fmt';
 
   let status = $state<any>(null);
   let account = $state<any>(null);
   let error = $state('');
   let busy = $state(false);
+  let clock = $state('');
+  let timer: any;
 
+  function tick() {
+    clock = new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+  }
   async function load() {
     try {
-      [status, account] = await Promise.all([api.get('/punch/status'), api.get('/absences/account')]);
+      [status, account] = await Promise.all([api.get<any>('/punch/status'), api.get<any>('/absences/account')]);
     } catch (e) {
       error = errMsg(e);
     }
   }
-
   async function punch(art: string) {
     error = '';
     busy = true;
@@ -28,73 +32,74 @@
       busy = false;
     }
   }
+  onMount(() => { tick(); timer = setInterval(tick, 15000); load(); });
+  onDestroy(() => clearInterval(timer));
 
-  onMount(load);
   const zustand = $derived(status?.zustand ?? 'draussen');
+  const since = $derived(status?.heute?.at(-1)?.zeit ?? '');
+  const today = new Date().toLocaleDateString('de-AT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const QUELLE: Record<string, string> = { terminal: 'Terminal', portal: 'Portal', admin: 'Verwaltung', import: 'Import' };
 </script>
 
-<h1>Stempeln</h1>
+<div class="page-head">
+  <h1>Stempeln</h1>
+  <span class="page-date">{today}</span>
+</div>
 {#if error}<div class="alert err">{error}</div>{/if}
 
 {#if status}
   <div class="grid cols-2">
-    <div class="card">
-      <div class="row" style="justify-content:space-between">
+    <div class="card" style="margin:0;display:flex;flex-direction:column;gap:20px">
+      <div class="row between" style="align-items:flex-start">
         <div>
-          <div class="muted small">{dateDe(status.tag.date)} · {status.jetzt} Uhr</div>
-          <div style="font-size:1.3rem;font-weight:600">
-            {#if zustand === 'arbeitet'}<span class="badge ok">eingestempelt</span>
-            {:else if zustand === 'pause'}<span class="badge warn">in Pause</span>
-            {:else}<span class="badge">nicht eingestempelt</span>{/if}
-          </div>
+          <div class="big-time">{clock}</div>
+          <div class="xs muted" style="margin-top:6px">Aktuelle Uhrzeit</div>
         </div>
+        {#if zustand === 'arbeitet'}<span class="badge ok"><span class="dot"></span>eingestempelt seit {since}</span>
+        {:else if zustand === 'pause'}<span class="badge warn"><span class="dot"></span>Pause seit {since}</span>
+        {:else}<span class="badge">nicht eingestempelt</span>{/if}
       </div>
-      <div class="row" style="margin-top:1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         {#if zustand === 'draussen'}
-          <button class="primary big" onclick={() => punch('kommen')} disabled={busy}>Kommen</button>
+          <button class="action primary" style="grid-column:1 / -1" onclick={() => punch('kommen')} disabled={busy}>Kommen</button>
         {:else if zustand === 'arbeitet'}
-          <button class="big" onclick={() => punch('pause_start')} disabled={busy}>Pause</button>
-          <button class="primary big" onclick={() => punch('gehen')} disabled={busy}>Gehen</button>
+          <button class="action" onclick={() => punch('pause_start')} disabled={busy}>Pause</button>
+          <button class="action primary" onclick={() => punch('gehen')} disabled={busy}>Gehen</button>
         {:else}
-          <button class="primary big" onclick={() => punch('pause_ende')} disabled={busy}>Pause Ende</button>
-          <button class="big" onclick={() => punch('gehen')} disabled={busy}>Gehen</button>
+          <button class="action primary" onclick={() => punch('pause_ende')} disabled={busy}>Pause Ende</button>
+          <button class="action" onclick={() => punch('gehen')} disabled={busy}>Gehen</button>
         {/if}
       </div>
-      <h3>Heute</h3>
-      {#if status.heute.length === 0}
-        <p class="muted small">Noch keine Stempelung.</p>
-      {:else}
-        <table>
-          <tbody>
+      <div>
+        <div class="section-label">Heutige Stempelungen</div>
+        {#if status.heute.length === 0}
+          <p class="small muted" style="margin:0">Noch keine Stempelung.</p>
+        {:else}
+          <div class="stamp-list">
             {#each status.heute as p}
-              <tr><td class="mono">{p.zeit}</td><td>{PUNCH_LABELS[p.art]}</td><td class="muted small">{p.quelle}</td></tr>
+              <div><span>{p.zeit}</span><span>{PUNCH_LABELS[p.art]}</span><span>{QUELLE[p.quelle] ?? p.quelle}</span></div>
             {/each}
-          </tbody>
-        </table>
-      {/if}
-      {#if status.tag.warnings.length}
-        <ul class="warn-list">{#each status.tag.warnings as w}<li>{warningText(w)}</li>{/each}</ul>
-      {/if}
+          </div>
+        {/if}
+      </div>
+      {#each status.tag.warnings as w}<div class="alert warn" style="margin:0">{warningText(w)}</div>{/each}
     </div>
 
-    <div class="card">
-      <div class="grid cols-3">
-        <div class="stat"><span class="v mono">{hm(status.tag.worked_min)}</span><span class="l">Ist heute</span></div>
-        <div class="stat"><span class="v mono">{hm(status.tag.target_min)}</span><span class="l">Soll heute</span></div>
-        <div class="stat"><span class="v mono" class:pos={status.saldo_min > 0} class:neg={status.saldo_min < 0}>{hm(status.saldo_min, true)}</span><span class="l">Gleitzeitsaldo bis gestern</span></div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="grid kpis">
+        <div class="kpi"><div class="l">Ist heute</div><div class="v">{hm(status.tag.worked_min)}</div></div>
+        <div class="kpi"><div class="l">Soll heute</div><div class="v">{hm(status.tag.target_min)}</div></div>
+        <div class="kpi"><div class="l">Gleitzeitsaldo bis gestern</div><div class="v" class:pos={status.saldo_min > 0} class:neg={status.saldo_min < 0}>{hm(status.saldo_min, true)}</div></div>
+        {#if account}
+          <div class="kpi"><div class="l">Resturlaub</div><div class="v">{days(account.urlaub.rest ?? 0)} Tage</div></div>
+          <div class="kpi"><div class="l">davon geplant</div><div class="v">{days(account.urlaub.geplant ?? 0)} Tage</div></div>
+          <div class="kpi"><div class="l">Gutstunden</div><div class="v">{hm(account.gutstunden.toepfe.reduce((s: number, t: any) => s + t.saldo_min, 0))}</div></div>
+        {/if}
       </div>
-      {#if account}
-        <hr style="border:0;border-top:1px solid var(--border);margin:1rem 0" />
-        <div class="grid cols-3">
-          <div class="stat"><span class="v">{account.urlaub.rest ?? 0}</span><span class="l">Resturlaub (Tage)</span></div>
-          <div class="stat"><span class="v">{account.urlaub.geplant ?? 0}</span><span class="l">davon geplant</span></div>
-          <div class="stat">
-            <span class="v mono">{hm(account.gutstunden.toepfe.reduce((s: number, t: any) => s + t.saldo_min, 0))}</span>
-            <span class="l">Gutstunden</span>
-          </div>
-        </div>
-      {/if}
-      <p class="small" style="margin-top:1rem"><a href="/monat">Monatsübersicht</a> · <a href="/abwesenheiten">Abwesenheit beantragen</a></p>
+      <div class="linklist">
+        <a href="/monat"><span>Monatsübersicht {new Date().toLocaleDateString('de-AT', { month: 'long' })}</span><span>Öffnen ›</span></a>
+        <a href="/abwesenheiten"><span>Abwesenheit beantragen</span><span>Öffnen ›</span></a>
+      </div>
     </div>
   </div>
 {/if}

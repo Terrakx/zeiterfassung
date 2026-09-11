@@ -16,6 +16,7 @@ export interface Branding {
   logo_data_url: string | null;
   primaerfarbe: string;
   fusszeile: string;
+  terminal_dunkel: boolean;
   urlaub_halbe_tage: boolean;
   urlaub_stunden: boolean;
   urlaub_hinweis: string;
@@ -27,6 +28,7 @@ export const branding = writable<Branding>({
   logo_data_url: null,
   primaerfarbe: '#2f6f8f',
   fusszeile: '',
+  terminal_dunkel: true,
   urlaub_halbe_tage: false,
   urlaub_stunden: false,
   urlaub_hinweis: ''

@@ -36,7 +36,10 @@ async fn list(State(state): State<AppState>, AdminUser(_): AdminUser) -> ApiResu
 async fn get_one(State(state): State<AppState>, AdminUser(_): AdminUser, Path(id): Path<i64>) -> ApiResult<Json<Value>> {
     let e = db::get_employee(&state.db, id).await?;
     let s = db::schedules_for(&state.db, id).await?;
-    Ok(Json(json!({ "employee": e, "schedules": s })))
+    let mut ev = serde_json::to_value(&e).unwrap_or(Value::Null);
+    ev["hat_pin"] = json!(e.pin_hash.is_some());
+    ev["hat_passwort"] = json!(e.password_hash.is_some());
+    Ok(Json(json!({ "employee": ev, "schedules": s })))
 }
 
 #[derive(Deserialize)]

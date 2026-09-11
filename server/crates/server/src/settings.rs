@@ -17,6 +17,7 @@ pub struct Settings {
     pub logo_data_url: Option<String>,
     pub primaerfarbe: String,
     pub fusszeile: String,
+    pub terminal_dunkel: bool,
     // BMD
     pub bmd_firmennr: String,
     pub bmd_zeichensatz: String,          // "windows-1252" | "utf-8"
@@ -49,6 +50,7 @@ impl Default for Settings {
             logo_data_url: None,
             primaerfarbe: "#2f6f8f".into(),
             fusszeile: String::new(),
+            terminal_dunkel: true,
             bmd_firmennr: String::new(),
             bmd_zeichensatz: "windows-1252".into(),
             bmd_krank_exportieren: false,
@@ -112,6 +114,7 @@ async fn public(State(state): State<AppState>) -> ApiResult<Json<Value>> {
         "logo_data_url": s.logo_data_url,
         "primaerfarbe": s.primaerfarbe,
         "fusszeile": s.fusszeile,
+        "terminal_dunkel": s.terminal_dunkel,
         "urlaub_halbe_tage": s.urlaub_halbe_tage,
         "urlaub_stunden": s.urlaub_stunden,
         "urlaub_hinweis": s.urlaub_hinweis,

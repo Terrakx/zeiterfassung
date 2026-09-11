@@ -62,31 +62,31 @@
   const blockers = (r: any) => r.blocker as string[];
 </script>
 
-<div class="row" style="justify-content:space-between">
-  <h1 style="margin:0">Monatsabschluss & BMD-Export</h1>
-  <div class="row">
+<div class="page-head">
+  <h1>Monatsabschluss &amp; BMD-Export</h1>
+  <div class="monthnav">
     <button onclick={() => { monat = shiftMonth(monat, -1); load(); }}>‹</button>
-    <strong style="min-width:150px;text-align:center">{monthLabel(monat)}</strong>
+    <span>{monthLabel(monat)}</span>
     <button onclick={() => { monat = shiftMonth(monat, 1); load(); }}>›</button>
   </div>
 </div>
-{#if error}<div class="alert err" style="margin-top:1rem">{error}</div>{/if}
-{#if msg}<div class="alert ok" style="margin-top:1rem">{msg}</div>{/if}
+{#if error}<div class="alert err">{error}</div>{/if}
+{#if msg}<div class="alert ok">{msg}</div>{/if}
 
 {#if data}
-  <div class="row" style="margin:1rem 0">
+  <div class="row" style="margin-bottom:20px">
     <button class="primary" onclick={closeAll} disabled={busy}>Alle abschließen + PDFs</button>
     <a class="btn" href={`/api/reports/month/${monat}/zip`} target="_blank">PDFs als ZIP</a>
     <button onclick={loadPreview}>CSV-Vorschau</button>
     <button onclick={exportCsv} disabled={busy}>BMD-CSV erzeugen (Abrechnungsmonat {data.abrechnungsmonat})</button>
   </div>
-  <div class="card table-wrap" style="padding:0">
+  <div class="card tight table-wrap">
     <table>
       <thead><tr><th>Mitarbeiter</th><th class="right">Soll</th><th class="right">Ist</th><th class="right">Diff</th><th class="right">Saldo Ende</th><th>Prüfung</th><th>Status</th><th></th></tr></thead>
       <tbody>
         {#each data.rows as r}
           <tr>
-            <td><a href={`/admin/mitarbeiter/${r.employee_id}`}>{r.name}</a></td>
+            <td><a href={`/admin/mitarbeiter/${r.employee_id}`} style="font-weight:500">{r.name}</a></td>
             <td class="right mono">{hm(r.soll_min)}</td><td class="right mono">{hm(r.ist_min)}</td>
             <td class="right mono" class:pos={r.diff_min > 0} class:neg={r.diff_min < 0}>{hm(r.diff_min, true)}</td>
             <td class="right mono">{hm(r.saldo_ende_min, true)}</td>
@@ -96,13 +96,13 @@
               {#if !blockers(r).length && !r.warnungen}<span class="badge ok">ok</span>{/if}
             </td>
             <td>{#if r.geschlossen}<span class="badge ok">abgeschlossen {dateDe(r.geschlossen.slice(0, 10))}</span>{:else}<span class="badge">offen</span>{/if}</td>
-            <td class="row" style="flex-wrap:nowrap">
+            <td class="right" style="white-space:nowrap">
               {#if r.geschlossen}
-                <a class="btn" href={`/api/reports/month/${r.employee_id}/${monat}/pdf`} target="_blank">PDF</a>
-                <button onclick={() => reopen(r.employee_id)}>Aufheben</button>
+                <a class="btn small" href={`/api/reports/month/${r.employee_id}/${monat}/pdf`} target="_blank">PDF</a>
+                <button class="small" onclick={() => reopen(r.employee_id)}>Aufheben</button>
               {:else}
-                <a class="btn" href={`/api/reports/month/${r.employee_id}/${monat}/pdf?vorschau=1`} target="_blank">Vorschau</a>
-                <button class="primary" onclick={() => close(r.employee_id)} disabled={busy || blockers(r).length > 0}>Abschließen</button>
+                <a class="btn small" href={`/api/reports/month/${r.employee_id}/${monat}/pdf?vorschau=1`} target="_blank">Vorschau</a>
+                <button class="primary small" style="font-weight:500" onclick={() => close(r.employee_id)} disabled={busy || blockers(r).length > 0}>Abschließen</button>
               {/if}
             </td>
           </tr>
@@ -113,7 +113,7 @@
 
   {#if periods.length}
     <h2>Durchrechnungsperioden, die in diesem Monat enden</h2>
-    <div class="card table-wrap" style="padding:0">
+    <div class="card tight table-wrap">
       <table>
         <thead><tr><th>Mitarbeiter</th><th>Periodenende</th><th class="right">Saldo</th><th class="right">Übertragsgrenze</th><th class="right">Vorschlag → Topf</th><th>Hinweise</th><th></th></tr></thead>
         <tbody>
@@ -124,7 +124,7 @@
               <td class="right mono">{p.uebertrag_max_plus_min != null ? hm(p.uebertrag_max_plus_min) : '–'}</td>
               <td class="right mono">{hm(p.vorschlag_min)} → {p.topf}</td>
               <td class="small">{#each p.hinweise as h}<span class="badge warn">{h}</span> {/each}</td>
-              <td>{#if p.erledigt_min != null}<span class="badge ok">übertragen {hm(p.erledigt_min)}</span>{:else}<button class="primary" onclick={() => closePeriod(p)}>Periode abschließen</button>{/if}</td>
+              <td class="right">{#if p.erledigt_min != null}<span class="badge ok">übertragen {hm(p.erledigt_min)}</span>{:else}<button class="primary small" style="font-weight:500" onclick={() => closePeriod(p)}>Periode abschließen</button>{/if}</td>
             </tr>
           {/each}
         </tbody>
@@ -135,7 +135,7 @@
 
   {#if preview}
     <h2>CSV-Vorschau ({preview.art}, Verbuchungsart {preview.verbuchungsart})</h2>
-    <div class="card table-wrap" style="padding:0">
+    <div class="card tight table-wrap">
       <table>
         <thead><tr><th>MA</th><th>Mitarbeiter</th><th>NLZ_K</th><th>Von</th><th>Bis</th><th class="right">NLZ_VER</th><th class="right">MENGE</th><th>DivNLZ</th><th>Beschreibung</th></tr></thead>
         <tbody>
@@ -148,13 +148,13 @@
   {/if}
 
   <h2>Exporte für {monthLabel(monat)}</h2>
-  <div class="card table-wrap" style="padding:0">
+  <div class="card tight table-wrap">
     <table>
       <thead><tr><th>Erstellt</th><th>Art</th><th>Datei</th><th class="right">Zeilen</th><th>SHA-256</th><th></th></tr></thead>
       <tbody>
         {#each exports as x}
-          <tr><td class="mono">{x.created_at.slice(0, 16).replace('T', ' ')}</td><td>{x.art}</td><td>{x.datei}</td><td class="right">{x.zeilen}</td><td class="mono small">{x.sha256.slice(0, 12)}…</td>
-            <td><a class="btn" href={`/api/export/runs/${x.id}/download`}>Download</a> <a class="btn" href={`/api/export/runs/${x.id}/preview`} target="_blank">Ansehen</a></td></tr>
+          <tr><td class="muted">{x.created_at.slice(0, 16).replace('T', ' ')}</td><td>{x.art}</td><td>{x.datei}</td><td class="right">{x.zeilen}</td><td class="small muted">{x.sha256.slice(0, 12)}…</td>
+            <td class="right" style="white-space:nowrap"><a class="btn small" href={`/api/export/runs/${x.id}/download`}>Download</a> <a class="btn small" href={`/api/export/runs/${x.id}/preview`} target="_blank">Ansehen</a></td></tr>
         {:else}<tr><td colspan="6" class="muted">Noch kein Export.</td></tr>{/each}
       </tbody>
     </table>

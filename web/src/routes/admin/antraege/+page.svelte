@@ -40,8 +40,8 @@
   }
 </script>
 
-<div class="row" style="justify-content:space-between">
-  <h1 style="margin:0">Anträge</h1>
+<div class="page-head">
+  <h1>Anträge</h1>
   <select style="width:auto" bind:value={status} onchange={load}>
     <option value="beantragt">offen</option>
     <option value="genehmigt">genehmigt</option>
@@ -50,8 +50,8 @@
     <option value="alle">alle</option>
   </select>
 </div>
-{#if error}<div class="alert err" style="margin-top:1rem">{error}</div>{/if}
-<div class="card table-wrap" style="padding:0;margin-top:1rem">
+{#if error}<div class="alert err">{error}</div>{/if}
+<div class="card tight table-wrap">
   <table>
     <thead><tr><th>Mitarbeiter</th><th>Art</th><th>Von</th><th>Bis</th><th>Einheit</th><th>Kommentar</th><th>Status</th><th></th></tr></thead>
     <tbody>
@@ -61,13 +61,13 @@
           <td>{a.label}</td><td class="mono">{dateDe(a.von)}</td><td class="mono">{dateDe(a.bis)}</td>
           <td>{a.einheit === 'tag' ? 'Tage' : a.einheit === 'halber_tag' ? 'halber Tag' : `${a.wert} h`}</td>
           <td class="small">{a.kommentar ?? ''}</td>
-          <td><span class="badge">{STATUS_LABEL[a.status]}</span></td>
-          <td class="row" style="flex-wrap:nowrap">
+          <td><span class="badge" class:ok={a.status === 'genehmigt'} class:warn={a.status === 'beantragt'} class:err={a.status === 'abgelehnt'}>{STATUS_LABEL[a.status]}</span></td>
+          <td class="right" style="white-space:nowrap">
             {#if a.status === 'beantragt'}
-              <button class="primary" onclick={() => decide(a.id, 'genehmigt')}>Genehmigen</button>
-              <button onclick={() => decide(a.id, 'abgelehnt')}>Ablehnen</button>
+              <button class="primary small" style="font-weight:500" onclick={() => decide(a.id, 'genehmigt')}>Genehmigen</button>
+              <button class="small" onclick={() => decide(a.id, 'abgelehnt')}>Ablehnen</button>
             {:else if a.status === 'genehmigt'}
-              <button class="danger" onclick={() => storno(a.id)}>Stornieren</button>
+              <button class="small danger" onclick={() => storno(a.id)}>Stornieren</button>
             {/if}
           </td>
         </tr>
@@ -79,7 +79,7 @@
 </div>
 
 <h2>Korrekturanträge zu Stempelungen</h2>
-<div class="card table-wrap" style="padding:0">
+<div class="card tight table-wrap">
   <table>
     <thead><tr><th>Mitarbeiter</th><th>Datum</th><th>Antrag</th><th>Begründung</th><th>Status</th><th></th></tr></thead>
     <tbody>
@@ -89,11 +89,11 @@
           <td class="mono">{dateDe(c.datum)}</td>
           <td>{#if c.typ === 'einfuegen'}{PUNCH_LABELS[c.art]} {c.zeit} nachtragen{:else}Streichen: {c.punch?.zeit ?? ''} {PUNCH_LABELS[c.punch?.art] ?? ''}{/if}</td>
           <td class="small">{c.begruendung}</td>
-          <td><span class="badge">{STATUS_LABEL[c.status]}</span></td>
-          <td class="row" style="flex-wrap:nowrap">
+          <td><span class="badge" class:ok={c.status === 'genehmigt'} class:warn={c.status === 'beantragt'} class:err={c.status === 'abgelehnt'}>{STATUS_LABEL[c.status]}</span></td>
+          <td class="right" style="white-space:nowrap">
             {#if c.status === 'beantragt'}
-              <button class="primary" onclick={() => decideCorrection(c.id, 'genehmigt')}>Genehmigen</button>
-              <button onclick={() => decideCorrection(c.id, 'abgelehnt')}>Ablehnen</button>
+              <button class="primary small" style="font-weight:500" onclick={() => decideCorrection(c.id, 'genehmigt')}>Genehmigen</button>
+              <button class="small" onclick={() => decideCorrection(c.id, 'abgelehnt')}>Ablehnen</button>
             {/if}
           </td>
         </tr>

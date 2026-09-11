@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#e6e7e8;font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#1c1f22;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+a{color:var(--primary,#2f6f8f)}a:hover{color:#1c1f22}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<section style="--primary: {{ primary }}; padding:48px; display:flex; flex-direction:column; gap:40px">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:720px">
+    <div style="font-size:13px;color:#6b7176;letter-spacing:.04em;text-transform:uppercase">Runde 1 · Kernscreens</div>
+    <div style="font-size:26px;font-weight:600">Zeiterfassung – Designrichtung</div>
+    <div style="font-size:15px;color:#4a5055;line-height:1.5">Ruhig, sachlich, tabellarische Ziffern. Neutraler Hintergrund, weiße Karten, eine konfigurierbare Primärfarbe (Standard #2f6f8f) plus semantische Farben für ok, Warnung, Fehler, Info. Primärfarbe rechts unter „Tweaks“ testen.</div>
+  </div>
+
+  <!-- ===== Terminal ===== -->
+  <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+    <div id="1a" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#4a5055"><span style="background:#1c1f22;color:#fff;border-radius:4px;padding:2px 7px;font-weight:600">1a</span>Terminal · hell · Schritt 3 (Aktion) · 1024×768</div>
+      <div style="width:1024px;height:768px;background:#f4f4f2;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12);display:flex;flex-direction:column;padding:40px 56px;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:6px;background:var(--primary,#2f6f8f);color:#fff;display:grid;place-items:center;font-weight:600;font-size:16px">M</div><div style="font-size:20px;font-weight:600">Musterbetrieb GmbH</div></div>
+          <div style="text-align:right"><div style="font-size:56px;font-weight:500;line-height:1;letter-spacing:-.01em">17:03<span style="color:#8a9096;font-size:32px">:41</span></div><div style="font-size:18px;color:#4a5055;margin-top:6px">Freitag, 11. September 2026</div></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:40px;padding-top:24px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:32px">
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="font-size:44px;font-weight:600;line-height:1.1">Maria Muster</div>
+              <div style="display:inline-flex;align-items:center;gap:10px;font-size:22px;color:#2e7d4f;font-weight:500"><span style="width:12px;height:12px;border-radius:50%;background:#2e7d4f"></span>eingestempelt seit 08:02</div>
+            </div>
+            <div style="display:flex;gap:16px">
+              <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:18px 24px;min-width:200px"><div style="font-size:14px;color:#6b7176">Heute gearbeitet</div><div style="font-size:36px;font-weight:600;margin-top:4px">8:31</div></div>
+              <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:18px 24px;min-width:200px"><div style="font-size:14px;color:#6b7176">Saldo bis gestern</div><div style="font-size:36px;font-weight:600;margin-top:4px;color:#2e7d4f">+9:15</div></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <div style="height:140px;border-radius:12px;background:#fff;border:2px solid #c9cdd0;display:grid;place-items:center;font-size:32px;font-weight:600;color:#1c1f22">Pause</div>
+            <div style="height:140px;border-radius:12px;background:var(--primary,#2f6f8f);display:grid;place-items:center;font-size:32px;font-weight:600;color:#fff">Gehen</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;color:#6b7176"><span>Abbrechen</span><span>Automatischer Reset in 18 s</span></div>
+      </div>
+    </div>
+
+    <div id="1b" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#4a5055"><span style="background:#1c1f22;color:#fff;border-radius:4px;padding:2px 7px;font-weight:600">1b</span>Terminal · dunkel · Schritt 1 (Personalnummer) · 1024×768</div>
+      <div style="width:1024px;height:768px;background:#161a1d;color:#f1f2f3;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.3);display:flex;flex-direction:column;padding:40px 56px;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:6px;background:var(--primary,#2f6f8f);color:#fff;display:grid;place-items:center;font-weight:600;font-size:16px">M</div><div style="font-size:20px;font-weight:600">Musterbetrieb GmbH</div></div>
+          <div style="text-align:right"><div style="font-size:56px;font-weight:500;line-height:1;letter-spacing:-.01em">08:01<span style="color:#7d848a;font-size:32px">:12</span></div><div style="font-size:18px;color:#a4aab0;margin-top:6px">Freitag, 11. September 2026</div></div>
+        </div>
+        <div style="flex:1;display:grid;grid-template-columns:1fr 340px;gap:64px;align-items:center;padding-top:16px">
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <div style="font-size:34px;font-weight:500">Personalnummer eingeben</div>
+            <div style="height:88px;border-radius:10px;background:#22272b;border:1px solid #33393e;display:flex;align-items:center;padding:0 28px;font-size:44px;font-weight:500;letter-spacing:.08em">7<span style="width:2px;height:48px;background:var(--primary,#2f6f8f);margin-left:6px"></span></div>
+            <div style="font-size:17px;color:#a4aab0;line-height:1.5">Anschließend PIN eingeben und mit OK bestätigen.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,100px);gap:14px;justify-content:end">
+            <sc-for list="{{ keys }}" as="k" hint-placeholder-count="12">
+              <div style="height:84px;border-radius:10px;display:grid;place-items:center;font-size:30px;font-weight:500;background: {{ k.bg }};color: {{ k.fg }};border:1px solid #33393e">{{ k.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;color:#7d848a"><span>Musterbetrieb GmbH · Musterstraße 1 · 1010 Wien</span><span>Stempelterminal</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Portal: Stempeln ===== -->
+  <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+    <div id="1c" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#4a5055"><span style="background:#1c1f22;color:#fff;border-radius:4px;padding:2px 7px;font-weight:600">1c</span>Portal · Stempeln · Desktop 1280</div>
+      <div style="width:1280px;min-height:820px;background:#f4f4f2;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12);display:flex;flex-direction:column;overflow:hidden">
+        <div style="background:#fff;border-bottom:1px solid #e2e4e6"><div style="max-width:1100px;margin:0 auto;height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 24px">
+          <div style="display:flex;align-items:center;gap:32px"><div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;border-radius:5px;background:var(--primary,#2f6f8f);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px">M</div><div style="font-weight:600;font-size:15px">Musterbetrieb GmbH</div></div>
+          <div style="display:flex;gap:4px;font-size:14px"><span style="padding:6px 12px;border-radius:6px;background:#eef2f4;color:#1c1f22;font-weight:500;box-shadow:inset 0 -2px 0 var(--primary,#2f6f8f)">Stempeln</span><span style="padding:6px 12px;color:#4a5055">Monatsübersicht</span><span style="padding:6px 12px;color:#4a5055">Abwesenheiten</span><span style="padding:6px 12px;color:#4a5055">Mein Konto</span></div></div>
+          <div style="display:flex;align-items:center;gap:16px;font-size:14px;color:#4a5055"><span>Maria Muster</span><span style="border:1px solid #c9cdd0;border-radius:6px;padding:5px 12px;color:#1c1f22">Abmelden</span></div>
+        </div></div>
+        <div style="max-width:1100px;width:100%;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:20px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:24px;font-weight:600">Stempeln</div><div style="font-size:14px;color:#6b7176">Freitag, 11. September 2026</div></div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px">
+            <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:24px;display:flex;flex-direction:column;gap:20px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:40px;font-weight:600;line-height:1">17:03</div><div style="font-size:13px;color:#6b7176;margin-top:6px">Aktuelle Uhrzeit</div></div>
+                <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;background:#e6f4ea;color:#1e5c38;padding:5px 10px;border-radius:999px"><span style="width:8px;height:8px;border-radius:50%;background:#2e7d4f"></span>eingestempelt seit 08:02</span></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div style="height:52px;border-radius:6px;border:1px solid #c9cdd0;background:#fff;display:grid;place-items:center;font-size:15px;font-weight:500">Pause</div>
+                <div style="height:52px;border-radius:6px;background:var(--primary,#2f6f8f);color:#fff;display:grid;place-items:center;font-size:15px;font-weight:500">Gehen</div>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:500;color:#6b7176;margin-bottom:8px">Heutige Stempelungen</div>
+                <div style="display:flex;flex-direction:column;font-size:14px">
+                  <sc-for list="{{ stamps }}" as="s" hint-placeholder-count="3">
+                    <div style="display:grid;grid-template-columns:64px 1fr auto;padding:10px 0;border-top:1px solid #eceef0;gap:12px"><span style="font-weight:500">{{ s.t }}</span><span>{{ s.art }}</span><span style="color:#8a9096;font-size:13px">{{ s.src }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;gap:10px;background:#fff7e0;border:1px solid #f1dc9a;border-radius:6px;padding:12px 14px;font-size:14px;color:#6b4a06"><span style="font-weight:600;flex-shrink:0">Hinweis</span><span>Pause fehlt oder zu kurz (0:00 bei 8:15 Arbeit)</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:20px">
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+                <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="6">
+                  <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:16px 18px"><div style="font-size:12px;color:#6b7176;line-height:1.3">{{ k.label }}</div><div style="font-size:26px;font-weight:600;margin-top:6px;color: {{ k.color }}">{{ k.value }}</div></div>
+                </sc-for>
+              </div>
+              <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:6px 18px;font-size:14px">
+                <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #eceef0"><span>Monatsübersicht September</span><span style="color:var(--primary,#2f6f8f)">Öffnen ›</span></div>
+                <div style="display:flex;justify-content:space-between;padding:12px 0"><span>Abwesenheit beantragen</span><span style="color:var(--primary,#2f6f8f)">Öffnen ›</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:auto;max-width:1100px;width:100%;margin-left:auto;margin-right:auto;padding:16px 24px;font-size:12px;color:#8a9096;border-top:1px solid #e2e4e6">Musterbetrieb GmbH · Musterstraße 1 · 1010 Wien</div>
+      </div>
+    </div>
+
+    <div id="1d" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#4a5055"><span style="background:#1c1f22;color:#fff;border-radius:4px;padding:2px 7px;font-weight:600">1d</span>Portal · Stempeln · Mobil 375</div>
+      <div style="width:375px;min-height:820px;background:#f4f4f2;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12);display:flex;flex-direction:column;overflow:hidden">
+        <div style="background:#fff;border-bottom:1px solid #e2e4e6;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+          <div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;border-radius:5px;background:var(--primary,#2f6f8f);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px">M</div><div style="font-weight:600;font-size:15px">Musterbetrieb</div></div>
+          <div style="width:44px;height:44px;display:grid;place-items:center;gap:0"><div style="display:flex;flex-direction:column;gap:5px"><span style="width:20px;height:2px;background:#1c1f22"></span><span style="width:20px;height:2px;background:#1c1f22"></span><span style="width:20px;height:2px;background:#1c1f22"></span></div></div>
+        </div>
+        <div style="padding:20px 16px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:22px;font-weight:600">Stempeln</div><div style="font-size:13px;color:#6b7176">Fr, 11. Sept.</div></div>
+          <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start"><div style="font-size:36px;font-weight:600;line-height:1">17:03</div>
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;background:#e6f4ea;color:#1e5c38;padding:5px 10px;border-radius:999px"><span style="width:8px;height:8px;border-radius:50%;background:#2e7d4f"></span>seit 08:02</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div style="height:52px;border-radius:6px;border:1px solid #c9cdd0;display:grid;place-items:center;font-size:15px;font-weight:500">Pause</div>
+              <div style="height:52px;border-radius:6px;background:var(--primary,#2f6f8f);color:#fff;display:grid;place-items:center;font-size:15px;font-weight:500">Gehen</div>
+            </div>
+            <div style="display:flex;flex-direction:column;font-size:14px">
+              <sc-for list="{{ stamps }}" as="s" hint-placeholder-count="3">
+                <div style="display:grid;grid-template-columns:56px 1fr auto;padding:9px 0;border-top:1px solid #eceef0;gap:8px"><span style="font-weight:500">{{ s.t }}</span><span>{{ s.art }}</span><span style="color:#8a9096;font-size:12px">{{ s.src }}</span></div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:8px;background:#fff7e0;border:1px solid #f1dc9a;border-radius:6px;padding:10px 12px;font-size:13px;color:#6b4a06;line-height:1.4"><span style="font-weight:600;flex-shrink:0">Hinweis</span><span>Pause fehlt oder zu kurz (0:00 bei 8:15 Arbeit)</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="6">
+              <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:14px"><div style="font-size:12px;color:#6b7176;line-height:1.3">{{ k.label }}</div><div style="font-size:24px;font-weight:600;margin-top:4px;color: {{ k.color }}">{{ k.value }}</div></div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:4px 16px;font-size:14px">
+            <div style="display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px solid #eceef0"><span>Monatsübersicht</span><span style="color:var(--primary,#2f6f8f)">›</span></div>
+            <div style="display:flex;justify-content:space-between;padding:13px 0"><span>Abwesenheit beantragen</span><span style="color:var(--primary,#2f6f8f)">›</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Portal: Monatsübersicht ===== -->
+  <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+    <div id="1e" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#4a5055"><span style="background:#1c1f22;color:#fff;border-radius:4px;padding:2px 7px;font-weight:600">1e</span>Portal · Monatsübersicht · Desktop 1280</div>
+      <div style="width:1280px;background:#f4f4f2;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12);display:flex;flex-direction:column;overflow:hidden">
+        <div style="background:#fff;border-bottom:1px solid #e2e4e6"><div style="max-width:1100px;margin:0 auto;height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 24px">
+          <div style="display:flex;align-items:center;gap:32px"><div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;border-radius:5px;background:var(--primary,#2f6f8f);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px">M</div><div style="font-weight:600;font-size:15px">Musterbetrieb GmbH</div></div>
+          <div style="display:flex;gap:4px;font-size:14px"><span style="padding:6px 12px;color:#4a5055">Stempeln</span><span style="padding:6px 12px;border-radius:6px;background:#eef2f4;font-weight:500;box-shadow:inset 0 -2px 0 var(--primary,#2f6f8f)">Monatsübersicht</span><span style="padding:6px 12px;color:#4a5055">Abwesenheiten</span><span style="padding:6px 12px;color:#4a5055">Mein Konto</span></div></div>
+          <div style="display:flex;align-items:center;gap:16px;font-size:14px;color:#4a5055"><span>Maria Muster</span><span style="border:1px solid #c9cdd0;border-radius:6px;padding:5px 12px;color:#1c1f22">Abmelden</span></div>
+        </div></div>
+        <div style="max-width:1100px;width:100%;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:20px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:16px"><div style="font-size:24px;font-weight:600">Monatsübersicht</div>
+              <div style="display:inline-flex;align-items:center;border:1px solid #c9cdd0;border-radius:6px;background:#fff;height:36px;font-size:14px"><span style="width:36px;display:grid;place-items:center;border-right:1px solid #e2e4e6;color:#4a5055">‹</span><span style="padding:0 16px;font-weight:500;min-width:150px;text-align:center">September 2026</span><span style="width:36px;display:grid;place-items:center;border-left:1px solid #e2e4e6;color:#4a5055">›</span></div>
+              <span style="font-size:12px;font-weight:500;background:#eceef0;color:#4a5055;padding:4px 10px;border-radius:999px">offen</span></div>
+            <span style="border:1px solid #c9cdd0;border-radius:6px;padding:8px 14px;font-size:14px;background:#fff">Monatsbericht PDF</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+            <sc-for list="{{ monthKpis }}" as="k" hint-placeholder-count="6">
+              <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:14px 16px"><div style="font-size:12px;color:#6b7176">{{ k.label }}</div><div style="font-size:22px;font-weight:600;margin-top:4px;color: {{ k.color }}">{{ k.value }}</div></div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:46px 40px 56px 70px 70px 60px 60px 110px 76px 1fr 150px;gap:0 8px;padding:10px 16px;font-size:12px;font-weight:500;color:#6b7176;border-bottom:1px solid #e2e4e6;background:#fafafa">
+              <span>Datum</span><span></span><span style="text-align:right">Soll</span><span style="text-align:right">Kommen</span><span style="text-align:right">Gehen</span><span style="text-align:right">Pause</span><span style="text-align:right">Ist</span><span>Abwesenheit</span><span style="text-align:right">Differenz</span><span>Hinweise</span><span></span>
+            </div>
+            <sc-for list="{{ days }}" as="r" hint-placeholder-count="14">
+              <div style="display:grid;grid-template-columns:46px 40px 56px 70px 70px 60px 60px 110px 76px 1fr 150px;gap:0 8px;align-items:center;padding:0 16px;height:40px;font-size:14px;border-bottom:1px solid #eceef0;background: {{ r.bg }}">
+                <span style="font-weight: {{ r.fw }}">{{ r.d }}</span><span style="color:#6b7176">{{ r.wd }}</span><span style="text-align:right">{{ r.soll }}</span><span style="text-align:right">{{ r.kommen }}</span><span style="text-align:right">{{ r.gehen }}</span><span style="text-align:right">{{ r.pause }}</span><span style="text-align:right;font-weight:500">{{ r.ist }}</span>
+                <span><sc-if value="{{ r.abw }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:999px;background: {{ r.abwBg }};color: {{ r.abwFg }}">{{ r.abw }}</span></sc-if></span>
+                <span style="text-align:right;font-weight:500;color: {{ r.diffColor }}">{{ r.diff }}</span>
+                <span style="font-size:13px;color:#8a5a06;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.hint }}</span>
+                <span style="text-align:right"><sc-if value="{{ r.past }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;border:1px solid #c9cdd0;border-radius:5px;padding:3px 8px;background:#fff;color:#4a5055">Korrektur beantragen</span></sc-if></span>
+              </div>
+            </sc-for>
+            <div style="display:flex;gap:20px;padding:10px 16px;font-size:12px;color:#6b7176;background:#fafafa">
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:#eef3f6;border:1px solid #c9cdd0"></span>heute</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:#f1f1f0;border:1px solid #c9cdd0"></span>Wochenende</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:#fff7e0;border:1px solid #c9cdd0"></span>Feiertag</span>
+            </div>
+          </div>
+          <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:20px 24px;display:flex;flex-direction:column;gap:12px">
+            <div style="font-size:15px;font-weight:600">Meine Korrekturanträge</div>
+            <div style="display:grid;grid-template-columns:100px 1fr 1fr 110px;gap:12px;font-size:14px;padding:10px 0;border-top:1px solid #eceef0;align-items:center"><span>03.09.2026</span><span>Gehen 16:45 nachtragen</span><span style="color:#6b7176">Ausstempeln vergessen</span><span style="justify-self:end;font-size:12px;font-weight:500;padding:3px 10px;border-radius:999px;background:#e6f4ea;color:#1e5c38">genehmigt</span></div>
+            <div style="display:grid;grid-template-columns:100px 1fr 1fr 110px;gap:12px;font-size:14px;padding:10px 0;border-top:1px solid #eceef0;align-items:center"><span>10.09.2026</span><span>Pause 12:00–12:30 nachtragen</span><span style="color:#6b7176">Pause nicht gestempelt</span><span style="justify-self:end;font-size:12px;font-weight:500;padding:3px 10px;border-radius:999px;background:#fff7e0;color:#6b4a06">offen</span></div>
+          </div>
+        </div>
+        <div style="max-width:1100px;width:100%;margin:0 auto;padding:16px 24px;font-size:12px;color:#8a9096;border-top:1px solid #e2e4e6">Musterbetrieb GmbH · Musterstraße 1 · 1010 Wien</div>
+      </div>
+    </div>
+
+    <div id="1f" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#4a5055"><span style="background:#1c1f22;color:#fff;border-radius:4px;padding:2px 7px;font-weight:600">1f</span>Portal · Monatsübersicht · Mobil 375 (Kartenansicht)</div>
+      <div style="width:375px;background:#f4f4f2;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12);display:flex;flex-direction:column;overflow:hidden">
+        <div style="background:#fff;border-bottom:1px solid #e2e4e6;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+          <div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;border-radius:5px;background:var(--primary,#2f6f8f);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px">M</div><div style="font-weight:600;font-size:15px">Musterbetrieb</div></div>
+          <div style="width:44px;height:44px;display:grid;place-items:center"><div style="display:flex;flex-direction:column;gap:5px"><span style="width:20px;height:2px;background:#1c1f22"></span><span style="width:20px;height:2px;background:#1c1f22"></span><span style="width:20px;height:2px;background:#1c1f22"></span></div></div>
+        </div>
+        <div style="padding:20px 16px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:22px;font-weight:600">Monatsübersicht</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div style="display:inline-flex;align-items:center;border:1px solid #c9cdd0;border-radius:6px;background:#fff;height:44px;font-size:14px;flex:1"><span style="width:44px;display:grid;place-items:center;border-right:1px solid #e2e4e6;color:#4a5055">‹</span><span style="flex:1;font-weight:500;text-align:center">September 2026</span><span style="width:44px;display:grid;place-items:center;border-left:1px solid #e2e4e6;color:#4a5055">›</span></div>
+            <span style="height:44px;width:44px;display:grid;place-items:center;border:1px solid #c9cdd0;border-radius:6px;background:#fff;font-size:12px;font-weight:600">PDF</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <sc-for list="{{ monthKpis }}" as="k" hint-placeholder-count="6">
+              <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:10px 12px"><div style="font-size:11px;color:#6b7176;line-height:1.3">{{ k.label }}</div><div style="font-size:18px;font-weight:600;margin-top:2px;color: {{ k.color }}">{{ k.value }}</div></div>
+            </sc-for>
+          </div>
+          <div style="display:flex;background:#eceef0;border-radius:6px;padding:3px;font-size:13px;font-weight:500"><span style="flex:1;text-align:center;padding:7px;background:#fff;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.08)">Karten</span><span style="flex:1;text-align:center;padding:7px;color:#4a5055">Tabelle</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ mobileDays }}" as="r" hint-placeholder-count="4">
+              <div style="background: {{ r.cardBg }};border:1px solid #e2e4e6;border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:14px;font-weight:600">{{ r.wd }}, {{ r.d }} September</span><span style="font-size:14px;font-weight:600;color: {{ r.diffColor }}">{{ r.diff }}</span></div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);font-size:13px;gap:6px">
+                  <div><div style="font-size:11px;color:#6b7176">Kommen</div><div>{{ r.kommen }}</div></div>
+                  <div><div style="font-size:11px;color:#6b7176">Gehen</div><div>{{ r.gehen }}</div></div>
+                  <div><div style="font-size:11px;color:#6b7176">Pause</div><div>{{ r.pause }}</div></div>
+                  <div><div style="font-size:11px;color:#6b7176">Ist / Soll</div><div><span style="font-weight:500">{{ r.ist }}</span> / {{ r.soll }}</div></div>
+                </div>
+                <sc-if value="{{ r.hint }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:#8a5a06;line-height:1.4">⚠ {{ r.hint }}</div></sc-if>
+                <div style="display:flex;justify-content:space-between;align-items:center"><sc-if value="{{ r.abw }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:999px;background: {{ r.abwBg }};color: {{ r.abwFg }}">{{ r.abw }}</span></sc-if><span style="font-size:12px;color:var(--primary,#2f6f8f);margin-left:auto;padding:6px 0">Korrektur beantragen</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Verwaltung: Mitarbeiter ===== -->
+  <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+    <div id="1g" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#4a5055"><span style="background:#1c1f22;color:#fff;border-radius:4px;padding:2px 7px;font-weight:600">1g</span>Verwaltung · Mitarbeiter · Desktop 1280</div>
+      <div style="width:1280px;background:#f4f4f2;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12);display:flex;flex-direction:column;overflow:hidden">
+        <div style="background:#fff;border-bottom:1px solid #e2e4e6"><div style="max-width:1100px;margin:0 auto;height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 24px">
+          <div style="display:flex;align-items:center;gap:32px"><div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;border-radius:5px;background:var(--primary,#2f6f8f);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px">M</div><div style="font-weight:600;font-size:15px">Musterbetrieb GmbH</div></div>
+          <div style="display:flex;gap:4px;font-size:14px"><span style="padding:6px 12px;color:#4a5055">Stempeln</span><span style="padding:6px 12px;color:#4a5055">Monatsübersicht</span><span style="padding:6px 12px;color:#4a5055">Abwesenheiten</span><span style="padding:6px 12px;border-radius:6px;background:#eef2f4;font-weight:500;box-shadow:inset 0 -2px 0 var(--primary,#2f6f8f)">Verwaltung</span></div></div>
+          <div style="display:flex;align-items:center;gap:16px;font-size:14px;color:#4a5055"><span>Anna Büro</span><span style="border:1px solid #c9cdd0;border-radius:6px;padding:5px 12px;color:#1c1f22">Abmelden</span></div>
+        </div></div>
+        <div style="background:#fff;border-bottom:1px solid #e2e4e6"><div style="max-width:1100px;margin:0 auto;padding:0 24px;display:flex;gap:4px;font-size:14px;overflow:hidden">
+          <sc-for list="{{ adminTabs }}" as="t" hint-placeholder-count="7">
+            <span style="padding:12px 12px;color: {{ t.color }};font-weight: {{ t.fw }};box-shadow: {{ t.shadow }};white-space:nowrap">{{ t.label }}</span>
+          </sc-for>
+        </div></div>
+        <div style="max-width:1100px;width:100%;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:20px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:24px;font-weight:600">Mitarbeiter</div>
+            <div style="display:flex;gap:10px;align-items:center"><div style="height:36px;width:240px;border:1px solid #c9cdd0;border-radius:6px;background:#fff;display:flex;align-items:center;padding:0 12px;font-size:14px;color:#8a9096">Suchen …</div><span style="height:36px;display:inline-flex;align-items:center;border-radius:6px;padding:0 14px;font-size:14px;font-weight:500;background:var(--primary,#2f6f8f);color:#fff">Neu anlegen</span></div></div>
+          <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:50px 1.4fr 1fr 90px 100px 100px 90px 70px 90px;gap:0 12px;padding:10px 16px;font-size:12px;font-weight:500;color:#6b7176;border-bottom:1px solid #e2e4e6;background:#fafafa"><span style="text-align:right">Nr.</span><span>Name</span><span>Benutzer</span><span>Rolle</span><span>Eintritt</span><span>Austritt</span><span style="text-align:right">Urlaub/Jahr</span><span>Aktiv</span><span></span></div>
+            <sc-for list="{{ employees }}" as="e" hint-placeholder-count="6">
+              <div style="display:grid;grid-template-columns:50px 1.4fr 1fr 90px 100px 100px 90px 70px 90px;gap:0 12px;align-items:center;padding:0 16px;height:44px;font-size:14px;border-bottom:1px solid #eceef0"><span style="text-align:right;color:#6b7176">{{ e.nr }}</span><span style="color:var(--primary,#2f6f8f);font-weight:500">{{ e.name }}</span><span style="color:#4a5055">{{ e.user }}</span><span>{{ e.rolle }}</span><span>{{ e.ein }}</span><span style="color:#6b7176">{{ e.aus }}</span><span style="text-align:right">{{ e.url }}</span><span><span style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:999px;background: {{ e.aktivBg }};color: {{ e.aktivFg }}">{{ e.aktiv }}</span></span><span style="text-align:right;font-size:12px;border:1px solid #c9cdd0;border-radius:5px;padding:3px 8px;color:#4a5055;justify-self:end">Öffnen</span></div>
+            </sc-for>
+            <div style="padding:10px 16px;font-size:13px;color:#6b7176;background:#fafafa">6 Mitarbeitende · 5 aktiv</div>
+          </div>
+        </div>
+        <div style="max-width:1100px;width:100%;margin:0 auto;padding:16px 24px;font-size:12px;color:#8a9096;border-top:1px solid #e2e4e6">Musterbetrieb GmbH · Musterstraße 1 · 1010 Wien</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+    <div id="1h" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center;font-size:13px;color:#4a5055"><span style="background:#1c1f22;color:#fff;border-radius:4px;padding:2px 7px;font-weight:600">1h</span>Verwaltung · Mitarbeiter-Detail · Stammdaten · Desktop 1280</div>
+      <div style="width:1280px;background:#f4f4f2;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12);display:flex;flex-direction:column;overflow:hidden">
+        <div style="background:#fff;border-bottom:1px solid #e2e4e6"><div style="max-width:1100px;margin:0 auto;height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 24px">
+          <div style="display:flex;align-items:center;gap:32px"><div style="display:flex;align-items:center;gap:10px"><div style="width:28px;height:28px;border-radius:5px;background:var(--primary,#2f6f8f);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px">M</div><div style="font-weight:600;font-size:15px">Musterbetrieb GmbH</div></div>
+          <div style="display:flex;gap:4px;font-size:14px"><span style="padding:6px 12px;color:#4a5055">Stempeln</span><span style="padding:6px 12px;color:#4a5055">Monatsübersicht</span><span style="padding:6px 12px;color:#4a5055">Abwesenheiten</span><span style="padding:6px 12px;border-radius:6px;background:#eef2f4;font-weight:500;box-shadow:inset 0 -2px 0 var(--primary,#2f6f8f)">Verwaltung</span></div></div>
+          <div style="display:flex;align-items:center;gap:16px;font-size:14px;color:#4a5055"><span>Anna Büro</span><span style="border:1px solid #c9cdd0;border-radius:6px;padding:5px 12px;color:#1c1f22">Abmelden</span></div>
+        </div></div>
+        <div style="background:#fff;border-bottom:1px solid #e2e4e6"><div style="max-width:1100px;margin:0 auto;padding:0 24px;display:flex;gap:4px;font-size:14px">
+          <sc-for list="{{ adminTabs }}" as="t" hint-placeholder-count="7">
+            <span style="padding:12px 12px;color: {{ t.color }};font-weight: {{ t.fw }};box-shadow: {{ t.shadow }};white-space:nowrap">{{ t.label }}</span>
+          </sc-for>
+        </div></div>
+        <div style="max-width:1100px;width:100%;margin:0 auto;padding:28px 24px;display:flex;flex-direction:column;gap:20px">
+          <div style="font-size:13px;color:#6b7176;display:flex;gap:8px"><span style="color:var(--primary,#2f6f8f)">Mitarbeiter</span><span>›</span><span>Maria Muster</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div style="display:flex;align-items:center;gap:14px"><div style="font-size:24px;font-weight:600">Maria Muster</div><span style="font-size:13px;color:#6b7176">Nr. 7 · Vollzeit 40 h</span><span style="font-size:12px;font-weight:500;padding:3px 10px;border-radius:999px;background:#e6f4ea;color:#1e5c38">aktiv</span></div>
+            <div style="display:flex;gap:16px;font-size:13px;color:#6b7176"><span>Saldo <strong style="color:#2e7d4f;font-weight:600">+9:15</strong></span><span>Resturlaub <strong style="color:#1c1f22;font-weight:600">41 Tage</strong></span></div>
+          </div>
+          <div style="display:flex;gap:2px;border-bottom:1px solid #e2e4e6;font-size:14px">
+            <sc-for list="{{ detailTabs }}" as="t" hint-placeholder-count="5">
+              <span style="padding:10px 14px;color: {{ t.color }};font-weight: {{ t.fw }};box-shadow: {{ t.shadow }}">{{ t.label }}</span>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px;align-items:start">
+            <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:24px;display:flex;flex-direction:column;gap:20px">
+              <div style="font-size:15px;font-weight:600">Stammdaten</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 20px">
+                <sc-for list="{{ fields }}" as="f" hint-placeholder-count="10">
+                  <div style="display:flex;flex-direction:column;gap:6px;grid-column: {{ f.span }}"><label style="font-size:13px;font-weight:500;color:#4a5055">{{ f.label }}</label><div style="height:38px;border:1px solid #c9cdd0;border-radius:6px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;font-size:14px;background: {{ f.bg }}"><span>{{ f.value }}</span><span style="color:#8a9096;font-size:12px">{{ f.suffix }}</span></div><sc-if value="{{ f.help }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#6b7176">{{ f.help }}</span></sc-if></div>
+                </sc-for>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #eceef0;padding-top:20px">
+                <span style="font-size:14px;color:#b3261e;font-weight:500">Deaktivieren</span>
+                <div style="display:flex;gap:10px"><span style="height:38px;display:inline-flex;align-items:center;border:1px solid #c9cdd0;border-radius:6px;padding:0 14px;font-size:14px;background:#fff">Verwerfen</span><span style="height:38px;display:inline-flex;align-items:center;border-radius:6px;padding:0 16px;font-size:14px;font-weight:500;background:var(--primary,#2f6f8f);color:#fff">Speichern</span></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:20px">
+              <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:24px;display:flex;flex-direction:column;gap:14px">
+                <div style="font-size:15px;font-weight:600">Zugang</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:10px 0;border-top:1px solid #eceef0"><div><div>Passwort</div><div style="font-size:12px;color:#6b7176">Benutzer maria.muster</div></div><span style="font-size:12px;border:1px solid #c9cdd0;border-radius:5px;padding:4px 10px">Zurücksetzen</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:10px 0;border-top:1px solid #eceef0"><div><div>Terminal-PIN</div><div style="font-size:12px;color:#2e7d4f">gesetzt</div></div><span style="font-size:12px;border:1px solid #c9cdd0;border-radius:5px;padding:4px 10px">Neu setzen</span></div>
+              </div>
+              <div style="background:#fff;border:1px solid #e2e4e6;border-radius:8px;padding:24px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:600">Wochenmodelle</div><span style="font-size:12px;color:var(--primary,#2f6f8f);font-weight:500">+ Neues Modell</span></div>
+                <div style="display:grid;grid-template-columns:90px repeat(7,1fr) 44px;gap:4px;font-size:12px;font-weight:500;color:#6b7176;padding-bottom:6px;border-bottom:1px solid #e2e4e6"><span>Gültig ab</span><span style="text-align:right">Mo</span><span style="text-align:right">Di</span><span style="text-align:right">Mi</span><span style="text-align:right">Do</span><span style="text-align:right">Fr</span><span style="text-align:right">Sa</span><span style="text-align:right">So</span><span style="text-align:right">Σ</span></div>
+                <div style="display:grid;grid-template-columns:90px repeat(7,1fr) 44px;gap:4px;font-size:14px;align-items:center"><span>01.01.2024</span><span style="text-align:right">8:00</span><span style="text-align:right">8:00</span><span style="text-align:right">8:00</span><span style="text-align:right">8:00</span><span style="text-align:right">8:00</span><span style="text-align:right;color:#8a9096">–</span><span style="text-align:right;color:#8a9096">–</span><span style="text-align:right;font-weight:600">40</span></div>
+                <div style="display:grid;grid-template-columns:90px repeat(7,1fr) 44px;gap:4px;font-size:14px;align-items:center;color:#6b7176"><span>01.06.2022</span><span style="text-align:right">7:42</span><span style="text-align:right">7:42</span><span style="text-align:right">7:42</span><span style="text-align:right">7:42</span><span style="text-align:right">7:42</span><span style="text-align:right;color:#8a9096">–</span><span style="text-align:right;color:#8a9096">–</span><span style="text-align:right;font-weight:600">38,5</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px;color:#4a5055;padding-top:6px;border-top:1px solid #eceef0"><span style="background:#eceef0;border-radius:4px;padding:3px 8px">Pausenabzug 0:30 ab 6:00</span><span style="background:#eceef0;border-radius:4px;padding:3px 8px">Gleitzeit</span><span style="background:#eceef0;border-radius:4px;padding:3px 8px">Kernzeit 09:00–15:00</span><span style="background:#eceef0;border-radius:4px;padding:3px 8px">Übertrag max. +40:00 / −10:00</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="max-width:1100px;width:100%;margin:0 auto;padding:16px 24px;font-size:12px;color:#8a9096;border-top:1px solid #e2e4e6">Musterbetrieb GmbH · Musterstraße 1 · 1010 Wien</div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;primary&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#2f6f8f&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#2f6f8f&quot;,&quot;#3d6b4f&quot;,&quot;#7a4a2e&quot;,&quot;#4a4f8f&quot;],&quot;section&quot;:&quot;Branding&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const P = this.props.primary ?? '#2f6f8f';
+    const ok = '#2e7d4f', err = '#b3261e', ink = '#1c1f22';
+    const dark = this.props.terminalDark ?? true;
+    const keys = ['1','2','3','4','5','6','7','8','9','⌫','0','OK'].map(l => ({
+      label: l,
+      bg: l === 'OK' ? P : l === '⌫' ? '#22272b' : '#2a3035',
+      fg: l === 'OK' ? '#fff' : l === '⌫' ? '#a4aab0' : '#f1f2f3'
+    }));
+    const stamps = [
+      { t: '08:02', art: 'Kommen', src: 'Terminal' },
+      { t: '12:00', art: 'Pause', src: 'Portal' },
+      { t: '12:30', art: 'Pause Ende', src: 'Portal' }
+    ];
+    const kpis = [
+      { label: 'Ist heute', value: '8:31', color: ink },
+      { label: 'Soll heute', value: '8:00', color: ink },
+      { label: 'Gleitzeitsaldo bis gestern', value: '+9:15', color: ok },
+      { label: 'Resturlaub', value: '41 Tage', color: ink },
+      { label: 'davon geplant', value: '4 Tage', color: ink },
+      { label: 'Gutstunden', value: '12:00', color: ink }
+    ];
+    const monthKpis = [
+      { label: 'Soll', value: '176:00', color: ink },
+      { label: 'Ist gesamt', value: '72:45', color: ink },
+      { label: 'Differenz im Monat', value: '+0:45', color: ok },
+      { label: 'Saldo Monatsbeginn', value: '+8:30', color: ok },
+      { label: 'Saldo Monatsende', value: '+9:15', color: ok },
+      { label: 'Resturlaub', value: '41 Tage', color: ink }
+    ];
+    const wds = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+    const raw = [
+      [1,'8:00','07:58','16:32','0:30','8:04','+0:04'],
+      [2,'8:00','08:05','17:10','0:30','8:35','+0:35'],
+      [3,'8:00','08:00','16:45','0:30','8:15','+0:15','Kommen ohne Gehen (korrigiert)'],
+      [4,'8:00','07:55','16:00','0:30','7:35','−0:25'],
+      [5],[6],
+      [7,'8:00','08:10','18:55','0:15','10:30','+2:30','Tagesarbeitszeit über 10 h (10:30)'],
+      [8,'8:00','','','','8:00','0:00','', 'Zeitausgleich'],
+      [9,'8:00','08:00','16:30','0:30','8:00','0:00'],
+      [10,'8:00','08:03','16:18','0:00','8:15','+0:15','Pause fehlt oder zu kurz (0:00 bei 8:15 Arbeit)'],
+      [11,'8:00','08:02','','0:30','8:31','', ''],
+      [12],[13],[14,'8:00'],[15,'8:00']
+    ];
+    const days = raw.map(([d,soll,kommen,gehen,pause,ist,diff,hint,abw]) => {
+      const wd = wds[new Date(2026,8,d).getDay()];
+      const we = wd === 'Sa' || wd === 'So', today = d === 11, future = d > 11;
+      return {
+        d: String(d).padStart(2,'0') + '.', wd, soll: soll || '', kommen: kommen || '', gehen: gehen || '',
+        pause: pause || '', ist: future ? '' : (ist || ''), diff: future ? '' : (diff || ''),
+        diffColor: (diff||'').startsWith('+') ? ok : (diff||'').startsWith('−') ? err : ink,
+        hint: future ? '' : (hint || ''), abw: abw || '', abwBg: '#e8eef5', abwFg: '#2c4a6b',
+        bg: today ? '#eef3f6' : we ? '#f1f1f0' : '#fff', cardBg: today ? '#eef3f6' : we ? '#f1f1f0' : '#fff',
+        fw: today ? 600 : 400, past: !future && !we && !today
+      };
+    });
+    const mobileDays = days.filter(r => [7,8,10,11].includes(parseInt(r.d)));
+    const adminTabs = ['Übersicht','Mitarbeiter','Anträge','Abschluss & Export','Feiertage','Einstellungen','Protokoll'].map(l => ({
+      label: l, color: l === 'Mitarbeiter' ? ink : '#4a5055', fw: l === 'Mitarbeiter' ? 500 : 400,
+      shadow: l === 'Mitarbeiter' ? `inset 0 -2px 0 ${P}` : 'none'
+    }));
+    const detailTabs = ['Stammdaten','Zeiten','Abwesenheiten','Urlaub','Gutstunden'].map(l => ({
+      label: l, color: l === 'Stammdaten' ? ink : '#4a5055', fw: l === 'Stammdaten' ? 500 : 400,
+      shadow: l === 'Stammdaten' ? `inset 0 -2px 0 ${P}` : 'none'
+    }));
+    const employees = [
+      ['1','Anna Büro','anna.buero','Admin','01.03.2019','','25',true],
+      ['3','Peter Lager','peter.lager','Mitarbeiter','15.09.2020','','25',true],
+      ['5','Sabine Verkauf','sabine.verkauf','Mitarbeiter','01.02.2021','','30',true],
+      ['6','Josef Teilzeit','josef.teilzeit','Mitarbeiter','01.06.2022','','25',true],
+      ['7','Maria Muster','maria.muster','Mitarbeiter','01.06.2022','','25',true],
+      ['4','Thomas Alt','thomas.alt','Mitarbeiter','01.04.2018','31.07.2026','25',false]
+    ].map(([nr,name,user,rolle,ein,aus,url,a]) => ({
+      nr, name, user, rolle, ein, aus: aus || '–', url, aktiv: a ? 'aktiv' : 'inaktiv',
+      aktivBg: a ? '#e6f4ea' : '#eceef0', aktivFg: a ? '#1e5c38' : '#4a5055'
+    }));
+    const fields = [
+      ['Personalnummer','7','','auto'],['Benutzername','maria.muster','','auto'],
+      ['Name','Maria Muster','','1 / -1'],
+      ['Rolle','Mitarbeiter','▾','auto'],['Zeiterfassung ab','01.06.2022','','auto'],
+      ['Eintritt','01.06.2022','','auto'],['Austritt','','','auto','#fafafa','Leer lassen, wenn unbefristet'],
+      ['Durchrechnung','12','Monate','auto'],['Urlaubsanspruch','25','Tage / Jahr','auto'],
+      ['Beginn Urlaubsjahr','01.01.','','auto'],['Gutstundentopf','Topf 1 – Mehrarbeit','▾','auto']
+    ].map(([label,value,suffix,span,bg,help]) => ({ label, value, suffix, span, bg: bg || '#fff', help: help || '' }));
+    return { primary: P, keys, stamps, kpis, monthKpis, days, mobileDays, adminTabs, detailTabs, employees, fields, dark };
+  }
+}
+</script>
+</body>
+</html>

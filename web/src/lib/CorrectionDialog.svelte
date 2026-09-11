@@ -53,12 +53,12 @@
 
 <dialog bind:this={dlg}>
   {#if day}
-    <h2 style="margin-top:0">Korrektur beantragen: {dateDe(day.date)}</h2>
+    <h2>Korrektur beantragen: {dateDe(day.date)}</h2>
     {#if error}<div class="alert err">{error}</div>{/if}
     <form onsubmit={submit}>
       <div class="row" style="margin-bottom:.8rem">
-        <label style="margin:0"><input type="radio" bind:group={typ} value="einfuegen" />Stempelung nachtragen</label>
-        <label style="margin:0"><input type="radio" bind:group={typ} value="stornieren" disabled={!day.punches?.length} />Stempelung streichen</label>
+        <label class="check" style="margin:0"><input type="radio" bind:group={typ} value="einfuegen" />Stempelung nachtragen</label>
+        <label class="check" style="margin:0"><input type="radio" bind:group={typ} value="stornieren" disabled={!day.punches?.length} />Stempelung streichen</label>
       </div>
       {#if typ === 'einfuegen'}
         <div class="form-grid">
@@ -74,10 +74,10 @@
             {#each day.punches as p}<option value={p.id}>{p.zeit} {PUNCH_LABELS[p.art]}</option>{/each}
           </select></div>
       {/if}
-      <div class="field"><label for="cb">Begründung</label><input id="cb" bind:value={begruendung} required placeholder="z. B. Gehen vergessen, Büro um 17:05 verlassen" /></div>
-      <div class="row">
-        <button class="primary" disabled={busy}>Antrag senden</button>
+      <div class="field" style="margin-top:16px"><label for="cb">Begründung</label><input id="cb" bind:value={begruendung} required placeholder="z. B. Gehen vergessen, Büro um 17:05 verlassen" /></div>
+      <div class="row" style="justify-content:flex-end">
         <button type="button" onclick={() => dlg.close()}>Abbrechen</button>
+        <button class="primary" disabled={busy}>Antrag senden</button>
       </div>
     </form>
   {/if}

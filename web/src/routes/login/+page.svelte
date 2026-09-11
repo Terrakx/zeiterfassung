@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { api, errMsg } from '$lib/api';
   import { user, branding, type User } from '$lib/stores';
+  import BrandMark from '$lib/BrandMark.svelte';
 
   let username = $state('');
   let password = $state('');
@@ -26,10 +27,9 @@
 
 <div class="login">
   <div class="card">
-    {#if $branding.logo_data_url}
-      <p style="text-align:center"><img src={$branding.logo_data_url} alt="" style="max-height:60px" /></p>
-    {/if}
+    <div class="brand-big"><BrandMark /></div>
     <h1>{$branding.firmenname}</h1>
+    <p class="small muted" style="text-align:center;margin-bottom:24px">Zeiterfassung</p>
     {#if error}<div class="alert err">{error}</div>{/if}
     <form onsubmit={submit}>
       <div class="field">
@@ -40,8 +40,8 @@
         <label for="p">Passwort</label>
         <input id="p" type="password" bind:value={password} autocomplete="current-password" required />
       </div>
-      <button class="primary" style="width:100%" disabled={busy}>Anmelden</button>
+      <button class="primary" style="width:100%;height:40px" disabled={busy}>Anmelden</button>
     </form>
-    <p class="small muted" style="text-align:center;margin-top:1rem"><a href="/terminal">Zum Stempelterminal</a></p>
+    <p class="small" style="text-align:center;margin:20px 0 0"><a href="/terminal">Zum Stempelterminal</a></p>
   </div>
 </div>

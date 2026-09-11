@@ -32,12 +32,12 @@
   }
 </script>
 
-<h1>Mein Konto</h1>
+<div class="page-head"><h1>Mein Konto</h1></div>
 {#if msg}<div class="alert ok">{msg}</div>{/if}
 {#if error}<div class="alert err">{error}</div>{/if}
 <div class="grid cols-2">
-  <div class="card">
-    <h3 style="margin-top:0">Passwort ändern</h3>
+  <div class="card" style="margin:0">
+    <div class="card-title">Passwort ändern</div>
     <form onsubmit={changePw}>
       <div class="field"><label for="a">Aktuelles Passwort</label><input id="a" type="password" bind:value={altes} required /></div>
       <div class="field"><label for="n">Neues Passwort (mind. 8 Zeichen)</label><input id="n" type="password" bind:value={neues} required minlength="8" /></div>
@@ -45,8 +45,8 @@
       <button class="primary">Speichern</button>
     </form>
   </div>
-  <div class="card">
-    <h3 style="margin-top:0">Terminal-PIN {#if $user?.hat_pin}<span class="badge ok">gesetzt</span>{:else}<span class="badge warn">nicht gesetzt</span>{/if}</h3>
+  <div class="card" style="margin:0">
+    <div class="card-title">Terminal-PIN {#if $user?.hat_pin}<span class="badge ok">gesetzt</span>{:else}<span class="badge warn">nicht gesetzt</span>{/if}</div>
     <p class="small muted">Mit Personalnummer <strong>{$user?.personalnr}</strong> und PIN stempeln Sie am Terminal.</p>
     <form onsubmit={changePin}>
       <div class="field"><label for="pp">Passwort zur Bestätigung</label><input id="pp" type="password" bind:value={pwPasswort} required /></div>

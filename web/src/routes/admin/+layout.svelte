@@ -20,7 +20,7 @@
 {#if $user?.rolle !== 'admin'}
   <div class="alert err">Keine Berechtigung.</div>
 {:else}
-  <div class="tabs">
+  <div class="tabs bar">
     {#each tabs as [path, label, exact]}<a href={path} class:active={active(path, exact)}>{label}</a>{/each}
   </div>
   {@render children()}

@@ -86,9 +86,9 @@
   {#if isVacation && einheit !== 'tag'}
     <div class="alert warn small">{$branding.urlaub_hinweis}</div>
   {/if}
-  <div class="field">
+  <div class="field" style="margin-top:16px">
     <label for="k">Kommentar</label>
     <input id="k" bind:value={kommentar} placeholder="optional" />
   </div>
-  <button class="primary" disabled={busy}>{admin ? 'Buchen' : 'Beantragen'}</button>
+  <div class="row" style="justify-content:flex-end"><button class="primary" disabled={busy}>{admin ? 'Buchen' : 'Beantragen'}</button></div>
 </form>
