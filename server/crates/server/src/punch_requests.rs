@@ -36,6 +36,7 @@ pub struct PunchRequestRow {
     pub datum: String,
     pub zeit: Option<String>,
     pub art: Option<String>,
+    pub payload: Option<String>,
     pub begruendung: String,
     pub status: String,
     pub beantragt_at: String,
@@ -49,6 +50,12 @@ pub async fn open_count(db: &SqlitePool, employee_id: i64, from: &str, to: &str)
         .bind(employee_id).bind(from).bind(to).fetch_one(db).await?)
 }
 
+#[derive(Deserialize, serde::Serialize, Clone)]
+pub struct DayPunch {
+    pub zeit: String,
+    pub art: String,
+}
+
 #[derive(Deserialize)]
 struct CreateReq {
     typ: String,
@@ -56,7 +63,36 @@ struct CreateReq {
     datum: String,
     zeit: Option<String>,
     art: Option<String>,
+    /// Bei typ = "tag": gewünschte Stempelfolge des Tages (ersetzt alle bisherigen Stempelungen).
+    stempelungen: Option<Vec<DayPunch>>,
     begruendung: String,
+}
+
+/// Prüft eine Tagesfolge: Zeiten gültig, aufsteigend, Reihenfolge Kommen/Pause/Gehen schlüssig.
+fn validate_day(datum: &str, list: &[DayPunch]) -> ApiResult<Vec<DayPunch>> {
+    let mut out: Vec<DayPunch> = Vec::new();
+    for p in list {
+        NaiveDateTime::parse_from_str(&format!("{datum}T{}", p.zeit), "%Y-%m-%dT%H:%M").map_err(|_| bad(format!("Uhrzeit „{}“ ungültig", p.zeit)))?;
+        PunchKind::parse(&p.art).ok_or_else(|| bad("Stempelart ungültig"))?;
+        out.push(DayPunch { zeit: p.zeit.clone(), art: p.art.clone() });
+    }
+    out.sort_by(|a, b| a.zeit.cmp(&b.zeit));
+    // Zustandsautomat wie am Terminal
+    let mut state = "draussen";
+    for p in &out {
+        state = match (state, p.art.as_str()) {
+            ("draussen", "kommen") => "arbeitet",
+            ("arbeitet", "gehen") => "draussen",
+            ("arbeitet", "pause_start") => "pause",
+            ("pause", "pause_ende") => "arbeitet",
+            ("pause", "gehen") => "draussen",
+            _ => return Err(bad(format!("Reihenfolge nicht schlüssig bei {} {}", p.zeit, PunchKind::parse(&p.art).map(|k| k.as_str()).unwrap_or("")))),
+        };
+    }
+    if state != "draussen" {
+        return Err(bad("Der Tag muss mit „Gehen“ enden"));
+    }
+    Ok(out)
 }
 
 async fn create_own(State(state): State<AppState>, CurrentUser(user): CurrentUser, Json(req): Json<CreateReq>) -> ApiResult<Json<Value>> {
@@ -68,7 +104,17 @@ async fn create_own(State(state): State<AppState>, CurrentUser(user): CurrentUse
         return Err(bad("Begründung ist Pflicht"));
     }
     calc::ensure_month_open(&state.db, user.id, date).await?;
+    let mut payload: Option<String> = None;
     match req.typ.as_str() {
+        "tag" => {
+            let list = validate_day(&req.datum, req.stempelungen.as_deref().unwrap_or(&[]))?;
+            payload = Some(serde_json::to_string(&list).unwrap_or_default());
+            let pending: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM punch_requests WHERE employee_id = ? AND datum = ? AND status = 'beantragt'")
+                .bind(user.id).bind(&req.datum).fetch_one(&state.db).await?;
+            if pending > 0 {
+                return Err(AppError::Conflict("Für diesen Tag liegt bereits ein offener Antrag vor".into()));
+            }
+        }
         "einfuegen" => {
             let z = req.zeit.as_deref().ok_or_else(|| bad("Uhrzeit fehlt"))?;
             NaiveDateTime::parse_from_str(&format!("{}T{}", req.datum, z), "%Y-%m-%dT%H:%M").map_err(|_| bad("Uhrzeit im Format HH:MM"))?;
@@ -87,10 +133,10 @@ async fn create_own(State(state): State<AppState>, CurrentUser(user): CurrentUse
         }
         _ => return Err(bad("Typ ungültig")),
     }
-    let r = sqlx::query("INSERT INTO punch_requests (employee_id, typ, punch_id, datum, zeit, art, begruendung) VALUES (?,?,?,?,?,?,?)")
-        .bind(user.id).bind(&req.typ).bind(req.punch_id).bind(&req.datum).bind(&req.zeit).bind(&req.art).bind(req.begruendung.trim())
+    let r = sqlx::query("INSERT INTO punch_requests (employee_id, typ, punch_id, datum, zeit, art, payload, begruendung) VALUES (?,?,?,?,?,?,?,?)")
+        .bind(user.id).bind(&req.typ).bind(req.punch_id).bind(&req.datum).bind(&req.zeit).bind(&req.art).bind(&payload).bind(req.begruendung.trim())
         .execute(&state.db).await?;
-    db::audit(&state.db, Some(user.id), "korrekturantrag_gestellt", Some(format!("punch_request:{}", r.last_insert_rowid())), None, Some(json!({"typ": req.typ, "datum": req.datum, "zeit": req.zeit, "art": req.art}))).await?;
+    db::audit(&state.db, Some(user.id), "korrekturantrag_gestellt", Some(format!("punch_request:{}", r.last_insert_rowid())), None, Some(json!({"typ": req.typ, "datum": req.datum, "zeit": req.zeit, "art": req.art, "stempelungen": payload}))).await?;
     Ok(Json(json!({"id": r.last_insert_rowid()})))
 }
 
@@ -105,6 +151,7 @@ fn row_json(r: &PunchRequestRow, name: Option<&str>) -> Value {
     if let Some(n) = name {
         v["name"] = json!(n);
     }
+    v["stempelungen"] = r.payload.as_deref().and_then(|p| serde_json::from_str::<Value>(p).ok()).unwrap_or(Value::Null);
     v
 }
 
@@ -143,6 +190,14 @@ async fn list_admin(State(state): State<AppState>, AdminUser(_): AdminUser, Quer
         let r = sqlx::query_as::<_, PunchRequestRow>("SELECT * FROM punch_requests WHERE id = ?").bind(id).fetch_one(&state.db).await?;
         let mut v = row_json(&r, Some(&name));
         v["personalnr"] = json!(pnr);
+        if r.typ == "tag" {
+            // Aktueller Stand des Tages zum Vergleich
+            if let Some(d) = time::parse_date(&r.datum) {
+                let emp = db::get_employee(&state.db, r.employee_id).await?;
+                let ctx = calc::Context::load(&state.db, &emp, d, d).await?;
+                v["aktuell"] = json!(ctx.day(d).punches);
+            }
+        }
         if let Some(pid) = r.punch_id {
             let p: Option<(String, String)> = sqlx::query_as("SELECT ts_utc, art FROM punches WHERE id = ?").bind(pid).fetch_optional(&state.db).await?;
             if let Some((ts, art)) = p {
@@ -173,6 +228,25 @@ async fn decide(State(state): State<AppState>, AdminUser(admin): AdminUser, Path
         calc::ensure_month_open(&state.db, r.employee_id, date).await?;
         let grund = format!("Korrekturantrag: {}", r.begruendung);
         match r.typ.as_str() {
+            "tag" => {
+                let list: Vec<DayPunch> = r.payload.as_deref().and_then(|p| serde_json::from_str(p).ok()).unwrap_or_default();
+                let emp = db::get_employee(&state.db, r.employee_id).await?;
+                let ctx = calc::Context::load(&state.db, &emp, date, date).await?;
+                let ids = ctx.punch_ids_for(date);
+                let mut tx = state.db.begin().await?;
+                let now = time::fmt_utc(time::now_utc());
+                for pid in &ids {
+                    sqlx::query("UPDATE punches SET storniert_at = ?, storniert_von = ?, storno_grund = ? WHERE id = ? AND storniert_at IS NULL")
+                        .bind(&now).bind(admin.id).bind(&grund).bind(pid).execute(&mut *tx).await?;
+                }
+                for p in &list {
+                    let local = NaiveDateTime::parse_from_str(&format!("{}T{}", r.datum, p.zeit), "%Y-%m-%dT%H:%M").map_err(|_| bad("Zeit ungültig"))?;
+                    sqlx::query("INSERT INTO punches (employee_id, ts_utc, art, quelle, erfasst_von, kommentar) VALUES (?,?,?,'admin',?,?)")
+                        .bind(r.employee_id).bind(time::fmt_utc(time::local_to_utc(local))).bind(&p.art).bind(admin.id).bind(&grund)
+                        .execute(&mut *tx).await?;
+                }
+                tx.commit().await?;
+            }
             "einfuegen" => {
                 let local = NaiveDateTime::parse_from_str(&format!("{}T{}", r.datum, r.zeit.clone().unwrap_or_default()), "%Y-%m-%dT%H:%M").map_err(|_| bad("Zeit ungültig"))?;
                 sqlx::query("INSERT INTO punches (employee_id, ts_utc, art, quelle, erfasst_von, kommentar) VALUES (?,?,?,'admin',?,?)")

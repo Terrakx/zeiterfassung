@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api, errMsg } from '$lib/api';
-  import { dateDe, STATUS_LABEL, PUNCH_LABELS } from '$lib/fmt';
+  import { dateDe, STATUS_LABEL, PUNCH_LABELS, requestText } from '$lib/fmt';
 
   let status = $state('beantragt');
   let list = $state<any[]>([]);
@@ -87,7 +87,12 @@
         <tr>
           <td>{c.name} <span class="muted small">({c.personalnr})</span></td>
           <td class="mono">{dateDe(c.datum)}</td>
-          <td>{#if c.typ === 'einfuegen'}{PUNCH_LABELS[c.art]} {c.zeit} nachtragen{:else}Streichen: {c.punch?.zeit ?? ''} {PUNCH_LABELS[c.punch?.art] ?? ''}{/if}</td>
+          <td>
+            {#if c.typ === 'tag'}
+              <div><span class="muted xs">bisher:</span> {#if c.aktuell?.length}{c.aktuell.map((p: any) => `${p.zeit} ${PUNCH_LABELS[p.art]}`).join(', ')}{:else}<span class="muted">keine Stempelungen</span>{/if}</div>
+              <div><span class="muted xs">neu:</span> {#if c.stempelungen?.length}{c.stempelungen.map((p: any) => `${p.zeit} ${PUNCH_LABELS[p.art]}`).join(', ')}{:else}<span class="muted">keine Stempelungen</span>{/if}</div>
+            {:else if c.typ === 'einfuegen'}{requestText(c)}{:else}Streichen: {c.punch?.zeit ?? ''} {PUNCH_LABELS[c.punch?.art] ?? ''}{/if}
+          </td>
           <td class="small">{c.begruendung}</td>
           <td><span class="badge" class:ok={c.status === 'genehmigt'} class:warn={c.status === 'beantragt'} class:err={c.status === 'abgelehnt'}>{STATUS_LABEL[c.status]}</span></td>
           <td class="right" style="white-space:nowrap">

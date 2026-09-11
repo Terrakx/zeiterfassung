@@ -265,3 +265,42 @@ async fn employee_sees_own_request_in_three_year_list() {
     let (_, list, _) = c.call("GET", "/absences?von=2025-01-01&bis=2027-12-31", None).await;
     assert_eq!(list[0]["status"], "storniert");
 }
+
+#[tokio::test]
+async fn day_correction_replaces_all_punches() {
+    let mut c = Client::new().await;
+    c.login("admin", "admin-test").await;
+    let id = create_employee(&mut c, "7", "maria", [8.0, 8.0, 8.0, 8.0, 8.0, 0.0, 0.0]).await;
+    let day = (chrono::Utc::now() - chrono::Duration::days(3)).format("%Y-%m-%d").to_string();
+    // Vorhandener Tag: nur Kommen (Gehen vergessen)
+    c.call("POST", &format!("/employees/{id}/punches"), Some(json!({"zeit": format!("{day}T08:00"), "art": "kommen", "kommentar": "Test"}))).await;
+    let admin_cookie = c.cookie.clone();
+    c.cookie = None;
+    c.login("maria", "geheim123").await;
+    // Unschlüssige Folge wird abgelehnt
+    let (st, _, _) = c.call("POST", "/punch-requests", Some(json!({"typ": "tag", "datum": day, "begruendung": "x",
+        "stempelungen": [{"zeit": "08:00", "art": "kommen"}, {"zeit": "12:00", "art": "pause_ende"}]}))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+    let (st, r, _) = c.call("POST", "/punch-requests", Some(json!({"typ": "tag", "datum": day, "begruendung": "Gehen vergessen, Pause nicht gestempelt",
+        "stempelungen": [{"zeit": "08:05", "art": "kommen"}, {"zeit": "12:00", "art": "pause_start"}, {"zeit": "12:30", "art": "pause_ende"}, {"zeit": "17:00", "art": "gehen"}]}))).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    let rid = r["id"].as_i64().unwrap();
+    // Zweiter offener Antrag für denselben Tag ist gesperrt
+    let (st, _, _) = c.call("POST", "/punch-requests", Some(json!({"typ": "tag", "datum": day, "begruendung": "x", "stempelungen": []}))).await;
+    assert_eq!(st, StatusCode::CONFLICT);
+    c.cookie = admin_cookie;
+    let (_, list, _) = c.call("GET", "/admin/punch-requests", None).await;
+    assert_eq!(list[0]["aktuell"].as_array().unwrap().len(), 1);
+    assert_eq!(list[0]["stempelungen"].as_array().unwrap().len(), 4);
+    let (st, _, _) = c.call("POST", &format!("/punch-requests/{rid}/decide"), Some(json!({"status": "genehmigt"}))).await;
+    assert_eq!(st, StatusCode::OK);
+    let (_, m, _) = c.call("GET", &format!("/employees/{id}/month?monat={}", &day[..7]), None).await;
+    let d = m["days"].as_array().unwrap().iter().find(|d| d["date"] == day).unwrap();
+    assert_eq!(d["punches"].as_array().unwrap().len(), 4, "{d}");
+    assert_eq!(d["worked_min"], 505);
+    assert!(!d["open_shift"].as_bool().unwrap());
+    // Die alte Stempelung ist storniert, nicht gelöscht
+    let (_, all, _) = c.call("GET", &format!("/employees/{id}/punches?von={day}&bis={day}"), None).await;
+    assert_eq!(all.as_array().unwrap().len(), 5);
+    assert!(all.as_array().unwrap().iter().any(|p| p["storniert_at"].is_string()));
+}

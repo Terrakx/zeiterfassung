@@ -94,8 +94,9 @@ Die Serveruhr bestimmt die Stempelzeit. Ohne NTP-Zugang die Hardware-Uhr regelm�
   nach FIFO vom ältesten Anspruch; Ansprüche verfallen automatisch zwei Jahre nach Ende des
   Urlaubsjahres (§ 4 Abs 5 UrlG, abschaltbar). Ein expliziter Übertrag-Eintrag ersetzt die
   durchgerechneten Vorjahre (für den Systemstart). Urlaubskartei und Urlaubsübersicht als PDF.
-- Korrekturanträge: Mitarbeiter beantragen das Nachtragen oder Streichen einer Stempelung mit
-  Begründung; die Verwaltung genehmigt oder lehnt ab. Offene Anträge blockieren den Monatsabschluss.
+- Korrekturanträge: Mitarbeitende beantragen die vollständige Stempelfolge eines Tages mit
+  Begründung; nach Genehmigung ersetzt sie alle bisherigen Stempelungen des Tages (alte werden
+  storniert). Offene Anträge blockieren den Monatsabschluss.
 - Krankenstände werden standardmäßig nicht exportiert (ÖGK-Import in BMD), Schalter vorhanden.
 
 ## BMD-Export

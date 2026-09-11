@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api, errMsg } from '$lib/api';
-  import { thisMonth, shiftMonth, monthLabel, dateDe, PUNCH_LABELS, STATUS_LABEL } from '$lib/fmt';
+  import { thisMonth, shiftMonth, monthLabel, dateDe, STATUS_LABEL, requestText } from '$lib/fmt';
   import MonthTable from '$lib/MonthTable.svelte';
   import CorrectionDialog from '$lib/CorrectionDialog.svelte';
 
@@ -78,7 +78,7 @@
       {#each requests as r}
         <div>
           <span style="width:90px;flex-shrink:0">{dateDe(r.datum)}</span>
-          <span style="flex:1">{r.typ === 'einfuegen' ? `${PUNCH_LABELS[r.art]} ${r.zeit} nachtragen` : 'Stempelung streichen'}</span>
+          <span style="flex:1">{requestText(r)}</span>
           <span class="muted small" style="flex:1">{r.begruendung}{#if r.entscheidung_kommentar} — {r.entscheidung_kommentar}{/if}</span>
           <span class="badge" class:ok={r.status === 'genehmigt'} class:warn={r.status === 'beantragt'} class:err={r.status === 'abgelehnt'}>{STATUS_LABEL[r.status]}</span>
           {#if r.status === 'beantragt'}<button class="small" onclick={() => withdraw(r.id)}>Zurückziehen</button>{/if}

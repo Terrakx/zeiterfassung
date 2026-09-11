@@ -219,6 +219,11 @@ impl Context {
     /// Tage im Zeitraum, ergänzt um Wochenwarnungen (Mo–So, an den letzten Arbeitstag der Woche gehängt).
     /// Der Context muss dafür die volle Woche des ersten Tages enthalten; sonst wird die Woche
     /// nur mit den vorhandenen Tagen bewertet.
+    /// IDs der aktiven Stempelungen, die dem Schichttag `date` zugeordnet sind.
+    pub fn punch_ids_for(&self, date: NaiveDate) -> Vec<i64> {
+        self.shifts.iter().filter(|(_, _, d)| *d == date).map(|(i, _, _)| self.punches[*i].id).collect()
+    }
+
     pub fn days(&self, from: NaiveDate, to: NaiveDate) -> Vec<DayView> {
         let mut out = Vec::new();
         let mut d = from;

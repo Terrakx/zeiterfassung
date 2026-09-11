@@ -27,12 +27,9 @@ Zeigt jeden Tag mit Soll, Kommen, Gehen, Pause, Ist, Abwesenheit und Differenz, 
 
 ## Korrektur beantragen
 
-Stempelung vergessen oder falsch? In der Monatsübersicht beim Tag auf **Korrektur beantragen** klicken:
+Stempelung vergessen oder falsch? In der Monatsübersicht beim Tag auf **Korrektur beantragen** klicken. Der Dialog zeigt die bisherigen Stempelungen des Tages als Liste. Sie ändern Uhrzeiten und Arten, entfernen Zeilen oder fügen welche hinzu, bis die Liste dem tatsächlichen Tag entspricht. „Standardtag einsetzen“ füllt einen normalen Arbeitstag nach Ihrem Wochenmodell vor. Der Dialog prüft die Reihenfolge (Kommen, Pause, Pause Ende, Gehen) und zeigt die daraus folgende Arbeitszeit.
 
-- **Stempelung nachtragen**: Uhrzeit und Art (Kommen, Gehen, Pause Beginn, Pause Ende) angeben.
-- **Stempelung streichen**: eine vorhandene Stempelung auswählen.
-
-Eine Begründung ist Pflicht. Die Verwaltung genehmigt oder lehnt ab, der Status steht unter „Meine Korrekturanträge“. Offene Anträge lassen sich zurückziehen. Für abgeschlossene Monate sind keine Anträge mehr möglich.
+Eine Begründung ist Pflicht. Nach der Genehmigung durch die Verwaltung ersetzt die neue Folge alle bisherigen Stempelungen des Tages; die alten bleiben storniert im Protokoll. Der Status steht unter „Meine Korrekturanträge“, offene Anträge lassen sich zurückziehen. Pro Tag ist nur ein offener Antrag möglich, für abgeschlossene Monate keiner mehr.
 
 ## Abwesenheiten
 

@@ -85,3 +85,13 @@ export const STATUS_LABEL: Record<string, string> = {
   abgelehnt: 'abgelehnt',
   storniert: 'storniert'
 };
+
+/** Kurzbeschreibung eines Korrekturantrags. */
+export function requestText(r: any): string {
+  if (r.typ === 'tag') {
+    const list = Array.isArray(r.stempelungen) ? r.stempelungen : [];
+    return list.length ? 'Tag ändern: ' + list.map((p: any) => `${p.zeit} ${PUNCH_LABELS[p.art] ?? p.art}`).join(', ') : 'Tag ändern: alle Stempelungen entfernen';
+  }
+  if (r.typ === 'einfuegen') return `${PUNCH_LABELS[r.art] ?? r.art} ${r.zeit} nachtragen`;
+  return 'Stempelung streichen';
+}
