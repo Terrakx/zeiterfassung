@@ -333,8 +333,11 @@ async fn overview(State(state): State<AppState>, AdminUser(_): AdminUser) -> Api
         let all: Vec<Punch> = ctx.punches.iter().filter_map(|r| r.local()).collect();
         let day = ctx.day(today);
         let saldo = saldo_until(&state.db, &e, today).await?;
-        let open_requests: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM absences WHERE employee_id = ? AND status = 'beantragt'")
-            .bind(e.id).fetch_one(&state.db).await?;
+        let open_requests: i64 = sqlx::query_scalar(
+            "SELECT (SELECT COUNT(*) FROM absences WHERE employee_id = ? AND status = 'beantragt')
+                  + (SELECT COUNT(*) FROM punch_requests WHERE employee_id = ? AND status = 'beantragt')",
+        )
+        .bind(e.id).bind(e.id).fetch_one(&state.db).await?;
         out.push(json!({
             "id": e.id,
             "name": e.display_name(),

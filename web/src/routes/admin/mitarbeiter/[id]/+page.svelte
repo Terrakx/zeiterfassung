@@ -225,10 +225,14 @@
         <table><tbody>
           <tr><td>Anspruch{#if vacation.anspruch_aliquot} <span class="muted small">(aliquot berechnet)</span>{/if}</td><td class="right">{days(vacation.anspruch)}</td></tr>
           <tr><td>Übertrag aus Vorjahr</td><td class="right">{days(vacation.uebertrag)}</td></tr>
-          <tr><td>Korrekturen / Verfall</td><td class="right">{days(vacation.korrektur)}</td></tr>
+          <tr><td>Korrekturen</td><td class="right">{days(vacation.korrektur)}</td></tr>
+          {#if vacation.verfall_manuell || vacation.verfall_auto}<tr><td>Verfall (manuell {days(vacation.verfall_manuell)}, automatisch {days(vacation.verfall_auto)})</td><td class="right">{days(vacation.verfall_manuell + vacation.verfall_auto)}</td></tr>{/if}
           <tr><td>Verbraucht (genehmigt, gesamtes Jahr)</td><td class="right">−{days(vacation.verbrauch)}</td></tr>
           <tr><th>Rest</th><th class="right">{days(vacation.rest)} Tage</th></tr>
         </tbody></table>
+        <p class="small muted" style="margin:.5rem 0">Offene Ansprüche: {#each vacation.offene_ansprueche as b, i}{i ? ', ' : ''}{days(b.tage)} aus {b.aus_urlaubsjahr.slice(0, 4)}{/each}
+          {#if vacation.naechster_verfall}<br /><span style="color:var(--warn)">{days(vacation.naechster_verfall.tage)} Tage verfallen am {dateDe(vacation.naechster_verfall.am)}</span>{/if}</p>
+        <p class="small"><a class="btn" href={`/api/reports/vacation/${id}/pdf`} target="_blank">Urlaubskartei PDF</a></p>
         <h3>Buchungen im Urlaubsjahr</h3>
         <table><tbody>
           {#each vacation.buchungen as b}<tr><td class="mono">{dateDe(b.von)} – {dateDe(b.bis)}</td><td>{b.label}</td><td class="right">{days(b.tage)}</td></tr>{/each}

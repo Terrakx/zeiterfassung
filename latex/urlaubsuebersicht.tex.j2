@@ -1,0 +1,37 @@
+\documentclass[a4paper,landscape,10pt]{article}
+\usepackage[a4paper,landscape,margin=16mm,top=18mm,bottom=18mm]{geometry}
+\usepackage{fontspec}
+\setmainfont{Latin Modern Sans}
+\usepackage[table]{xcolor}
+\usepackage{longtable,booktabs,array,graphicx,fancyhdr,lastpage}
+\usepackage[german]{babel}
+\definecolor{primary}{HTML}{ {{- primary_hex -}} }
+\definecolor{muted}{HTML}{667085}
+\renewcommand{\arraystretch}{1.15}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\textcolor{muted}{ {{- firmenname -}} \ · Urlaubsübersicht}}
+\rhead{\small\textcolor{muted}{Stichtag {{ stichtag }} · erstellt {{ erstellt_am }} }}
+\lfoot{\scriptsize\textcolor{muted}{ {{- fusszeile -}} }}
+\setlength{\LTleft}{0pt}\setlength{\LTright}{\fill}
+\rfoot{\scriptsize\textcolor{muted}{Seite \thepage\ von \pageref{LastPage}}}
+\renewcommand{\headrulewidth}{0.3pt}
+\begin{document}
+
+{% if logo %}\includegraphics[height=11mm]{ {{- logo -}} }\\[2mm]{% endif %}
+{\LARGE\bfseries\textcolor{primary}{Urlaubsübersicht zum {{ stichtag }}}}
+
+\vspace{4mm}
+\begin{longtable}{@{}l l l r r r r r r l@{}}
+\toprule
+\textbf{Nr} & \textbf{Name} & \textbf{Urlaubsjahr} & \textbf{Anspruch} & \textbf{Übertrag} & \textbf{Verbraucht} & \textbf{Geplant} & \textbf{Rest} & \textbf{Verfall} & \textbf{Nächster Verfall}\\
+\midrule
+\endhead
+{% for r in rows %}{{ r.personalnr }} & {{ r.name }} & {{ r.jahr }} & {{ r.anspruch }} & {{ r.uebertrag }} & {{ r.verbraucht }} & {{ r.geplant }} & \textbf{ {{- r.rest -}} } & {{ r.verfall }} & {\small {{ r.naechster_verfall }}}\\
+{% endfor %}
+\bottomrule
+\end{longtable}
+
+\noindent{\scriptsize\textcolor{muted}{Alle Werte in Arbeitstagen. Verfall: Summe der im laufenden Urlaubsjahr manuell und automatisch verfallenen Tage.}}
+
+\end{document}

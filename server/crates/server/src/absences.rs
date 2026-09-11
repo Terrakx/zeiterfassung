@@ -388,61 +388,121 @@ async fn consumed_days(db: &SqlitePool, emp: &Employee, from: NaiveDate, to: Nai
     Ok((total, list))
 }
 
-/// Urlaubskonto zum Stichtag: Anspruch, Übertrag aus dem Vorjahr, Korrekturen, Verbrauch, Rest.
-/// Der Übertrag wird aus dem Vorjahr durchgerechnet, sofern kein expliziter Übertrag erfasst ist.
+/// Anspruch eines Urlaubsjahres: expliziter Eintrag oder automatisch (erstes Jahr aliquot in halben Tagen).
+fn entitlement_for(emp: &Employee, eintritt: NaiveDate, year: NaiveDate, year_end: NaiveDate, explicit: Option<f64>) -> f64 {
+    if let Some(e) = explicit {
+        return e;
+    }
+    let start = year.max(eintritt);
+    let days_in_year = (year_end - year).num_days() + 1;
+    let days_employed = (year_end - start).num_days() + 1;
+    if days_employed >= days_in_year {
+        emp.urlaubsanspruch_tage
+    } else {
+        (emp.urlaubsanspruch_tage * days_employed as f64 / days_in_year as f64 * 2.0).round() / 2.0
+    }
+}
+
+/// Urlaubskonto zum Stichtag mit Verbrauch nach FIFO (ältester Anspruch zuerst) und Verfall nach
+/// § 4 Abs 5 UrlG: ein Anspruch verjährt zwei Jahre nach Ende des Urlaubsjahres, in dem er entstand.
+/// Der Übertrag ergibt sich aus den offenen Ansprüchen der Vorjahre, sofern kein expliziter
+/// Übertrag-Eintrag erfasst ist (dieser ersetzt alle älteren Ansprüche und gilt als Anspruch des Vorjahres).
 pub async fn vacation_account(db: &SqlitePool, emp: &Employee, as_of: NaiveDate) -> ApiResult<Value> {
     let eintritt = time::parse_date(&emp.eintritt).ok_or_else(|| bad("Eintritt ungültig"))?;
+    let s = settings::load(db).await?;
     let target_year = vacation_year_start(emp, as_of);
     let mut year = vacation_year_start(emp, eintritt);
-    let mut carry = 0.0;
-    let mut result = json!({});
     let entries = sqlx::query_as::<_, (i64, String, String, f64, Option<String>, String)>(
         "SELECT id, urlaubsjahr, art, tage, grund, created_at FROM vacation_entries WHERE employee_id = ? ORDER BY urlaubsjahr, id",
     )
     .bind(emp.id).fetch_all(db).await?;
-    // Sicherheitsgrenze gegen Endlosschleifen bei kaputten Daten
+    // Offene Ansprüche je Ursprungsjahr (Start des Urlaubsjahres, Rest), aufsteigend = FIFO
+    let mut buckets: Vec<(NaiveDate, f64)> = Vec::new();
+    let mut history: Vec<Value> = Vec::new();
+    let mut result = json!({});
     for _ in 0..80 {
         let year_end = next_year_start(emp, year) - Duration::days(1);
         let ys = time::fmt_date(year);
         let year_entries: Vec<_> = entries.iter().filter(|e| e.1 == ys).collect();
         let explicit_anspruch = year_entries.iter().filter(|e| e.2 == "anspruch").map(|e| e.3).last();
-        let anspruch = explicit_anspruch.unwrap_or_else(|| {
-            // Erstes (Rumpf-)Urlaubsjahr: aliquot nach Kalendertagen. Admin kann per Anspruch-Eintrag übersteuern.
-            let start = year.max(eintritt);
-            let days_in_year = (year_end - year).num_days() + 1;
-            let days_employed = (year_end - start).num_days() + 1;
-            if days_employed >= days_in_year {
-                emp.urlaubsanspruch_tage
-            } else {
-                (emp.urlaubsanspruch_tage * days_employed as f64 / days_in_year as f64 * 2.0).round() / 2.0
+        let anspruch = entitlement_for(emp, eintritt, year, year_end, explicit_anspruch);
+        if let Some(u) = year_entries.iter().filter(|e| e.2 == "uebertrag").map(|e| e.3).last() {
+            // Expliziter Übertrag ersetzt die durchgerechneten Vorjahre; gilt als Anspruch des Vorjahres.
+            buckets.clear();
+            if u > 0.0 {
+                buckets.push((vacation_year_start(emp, year - Duration::days(1)), u));
             }
+        }
+        let uebertrag: f64 = buckets.iter().map(|b| b.1).sum();
+        let korrektur: f64 = year_entries.iter().filter(|e| e.2 == "korrektur").map(|e| e.3).sum();
+        let verfall_manuell: f64 = year_entries.iter().filter(|e| e.2 == "verfall").map(|e| e.3).sum();
+        buckets.push((year, anspruch + korrektur));
+        buckets.sort_by_key(|b| b.0);
+        // Manueller Verfall (negativ) wird vom ältesten Anspruch abgezogen
+        let mut manual = -verfall_manuell;
+        for b in buckets.iter_mut() {
+            if manual <= 0.0 { break; }
+            let take = b.1.min(manual);
+            b.1 -= take;
+            manual -= take;
+        }
+        // Verbrauch im Jahr, chronologisch, FIFO
+        let (verbrauch, list) = consumed_days(db, emp, year, year_end).await?;
+        let mut rest_consume = verbrauch;
+        for b in buckets.iter_mut() {
+            if rest_consume <= 1e-9 { break; }
+            let take = b.1.min(rest_consume);
+            b.1 -= take;
+            rest_consume -= take;
+        }
+        let ueberzogen = rest_consume.max(0.0);
+        buckets.retain(|b| b.1 > 1e-9);
+        // Verfall am Jahresende: Ansprüche, deren Urlaubsjahr zwei volle Jahre zurückliegt
+        let mut verfall_auto = 0.0;
+        let year_over = year_end < as_of;
+        if s.urlaub_verfall_auto && year_over {
+            let cutoff = vacation_year_start(emp, year - Duration::days(1)); // Beginn des Vorjahres
+            let cutoff = vacation_year_start(emp, cutoff - Duration::days(1)); // Beginn des Vor-Vorjahres
+            let (expired, keep): (Vec<_>, Vec<_>) = buckets.iter().cloned().partition(|b| b.0 <= cutoff);
+            verfall_auto = expired.iter().map(|b| b.1).sum();
+            buckets = keep;
+        }
+        let rest: f64 = buckets.iter().map(|b| b.1).sum::<f64>() - ueberzogen;
+        let year_json = json!({
+            "urlaubsjahr_von": ys,
+            "urlaubsjahr_bis": time::fmt_date(year_end),
+            "anspruch": anspruch,
+            "anspruch_aliquot": explicit_anspruch.is_none() && anspruch != emp.urlaubsanspruch_tage,
+            "uebertrag": uebertrag,
+            "korrektur": korrektur,
+            "verfall_manuell": verfall_manuell,
+            "verfall_auto": -verfall_auto,
+            "verbrauch": verbrauch,
+            "rest": rest,
         });
-        let explicit_carry = year_entries.iter().filter(|e| e.2 == "uebertrag").map(|e| e.3).last();
-        let uebertrag = explicit_carry.unwrap_or(carry);
-        let korrektur: f64 = year_entries.iter().filter(|e| e.2 == "korrektur" || e.2 == "verfall").map(|e| e.3).sum();
-        let consume_to = if year == target_year { year_end } else { year_end };
-        let (verbrauch, list) = consumed_days(db, emp, year, consume_to).await?;
-        let rest = anspruch + uebertrag + korrektur - verbrauch;
         if year == target_year {
             let (verbrauch_bis_stichtag, _) = consumed_days(db, emp, year, as_of).await?;
-            result = json!({
-                "urlaubsjahr_von": ys,
-                "urlaubsjahr_bis": time::fmt_date(year_end),
-                "anspruch": anspruch,
-                "anspruch_aliquot": explicit_anspruch.is_none() && anspruch != emp.urlaubsanspruch_tage,
-                "uebertrag": uebertrag,
-                "korrektur": korrektur,
-                "verbrauch": verbrauch,
-                "verbrauch_bis_stichtag": verbrauch_bis_stichtag,
-                "geplant": verbrauch - verbrauch_bis_stichtag,
-                "rest": rest,
-                "einheit": "tage",
-                "buchungen": list,
-                "eintraege": year_entries.iter().map(|e| json!({"id": e.0, "art": e.2, "tage": e.3, "grund": e.4, "created_at": e.5})).collect::<Vec<_>>(),
+            // Nächster Verfall: ältester offener Anspruch
+            let next_expiry = buckets.first().map(|b| {
+                let e1 = next_year_start(emp, b.0);
+                let e2 = next_year_start(emp, e1);
+                let e3 = next_year_start(emp, e2);
+                json!({"tage": b.1, "am": time::fmt_date(e3 - Duration::days(1)), "aus_urlaubsjahr": time::fmt_date(b.0)})
             });
+            let mut r = year_json.clone();
+            r["verbrauch_bis_stichtag"] = json!(verbrauch_bis_stichtag);
+            r["geplant"] = json!(verbrauch - verbrauch_bis_stichtag);
+            r["einheit"] = json!("tage");
+            r["buchungen"] = json!(list);
+            r["eintraege"] = json!(year_entries.iter().map(|e| json!({"id": e.0, "art": e.2, "tage": e.3, "grund": e.4, "created_at": e.5})).collect::<Vec<_>>());
+            r["offene_ansprueche"] = json!(buckets.iter().map(|b| json!({"aus_urlaubsjahr": time::fmt_date(b.0), "tage": b.1})).collect::<Vec<_>>());
+            r["naechster_verfall"] = json!(next_expiry);
+            r["verfall_auto_aktiv"] = json!(s.urlaub_verfall_auto);
+            r["historie"] = json!(history);
+            result = r;
             break;
         }
-        carry = rest;
+        history.push(year_json);
         year = next_year_start(emp, year);
         if year > as_of {
             break;

@@ -34,6 +34,7 @@ pub struct Settings {
     // Urlaub
     pub urlaub_halbe_tage: bool,
     pub urlaub_stunden: bool,
+    pub urlaub_verfall_auto: bool,        // Verfall nach § 4 Abs 5 UrlG automatisch berechnen
     pub urlaub_hinweis: String,
     // PDF
     pub unterschrift_1: String,
@@ -62,6 +63,7 @@ impl Default for Settings {
             rundung_min: 0,
             urlaub_halbe_tage: false,
             urlaub_stunden: false,
+            urlaub_verfall_auto: true,
             urlaub_hinweis: "Urlaub ist nach dem Urlaubsgesetz in ganzen Arbeitstagen zu verbrauchen. \
 Ein stundenweiser Verbrauch ist gesetzlich nicht vorgesehen und nur ausnahmsweise auf Wunsch und im \
 Interesse des Arbeitnehmers mit ausdrücklicher Vereinbarung vertretbar. Bitte vor Verwendung rechtlich prüfen."

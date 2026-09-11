@@ -26,6 +26,8 @@ use crate::{
 };
 
 const TEMPLATE: &str = include_str!("../../../../latex/monatsbericht.tex.j2");
+const TEMPLATE_URLAUB: &str = include_str!("../../../../latex/urlaubskartei.tex.j2");
+const TEMPLATE_URLAUB_UEBERSICHT: &str = include_str!("../../../../latex/urlaubsuebersicht.tex.j2");
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -35,6 +37,8 @@ pub fn router() -> Router<AppState> {
         .route("/reports/reopen", post(reopen))
         .route("/reports/month/{id}/{monat}/pdf", get(month_pdf))
         .route("/reports/month/{monat}/zip", get(month_zip))
+        .route("/reports/vacation/{id}/pdf", get(vacation_pdf))
+        .route("/reports/vacation-overview/pdf", get(vacation_overview_pdf))
 }
 
 #[derive(Deserialize)]
@@ -83,6 +87,10 @@ async fn blockers_for(db: &SqlitePool, e: &Employee, mv: &MonthView) -> ApiResul
         .bind(e.id).bind(time::fmt_date(to)).bind(time::fmt_date(from)).fetch_one(db).await?;
     if open > 0 {
         b.push(format!("{open} offene Anträge"));
+    }
+    let open_pr = crate::punch_requests::open_count(db, e.id, &time::fmt_date(from), &time::fmt_date(to)).await?;
+    if open_pr > 0 {
+        b.push(format!("{open_pr} offene Korrekturanträge"));
     }
     let schedules = db::schedules_for(db, e.id).await?;
     if db::schedule_at(&schedules, to).is_none() {
@@ -335,10 +343,7 @@ pub async fn render_month_pdf(db: &SqlitePool, data_dir: &Path, s: &Settings, em
             "bemerkung": tex(&bem.join("; ")),
         }));
     }
-    let logo_path = match &s.logo_data_url {
-        Some(url) if url.starts_with("data:image/png") || url.starts_with("data:image/jpeg") => decode_logo(data_dir, url).ok(),
-        _ => None,
-    };
+    let logo_path = logo_for(data_dir, s);
     let transferred = mv.saldo_start_min + mv.diff_min - mv.saldo_ende_min;
     let uebertragen = if transferred != 0 { Some(time::fmt_hm(transferred)) } else { None };
     let ctx = json!({
@@ -351,7 +356,7 @@ pub async fn render_month_pdf(db: &SqlitePool, data_dir: &Path, s: &Settings, em
         "erstellt_am": time::to_local(time::now_utc()).format("%d.%m.%Y %H:%M").to_string(),
         "vorschau": vorschau,
         "hash": &data_hash(mv)[..12],
-        "logo": logo_path.map(|p| p.to_string_lossy().replace('\\', "/")),
+        "logo": logo_path,
         "wochenmodell": tex(&labels.wochenmodell),
         "wochenstunden": tex(&labels.wochenstunden),
         "durchrechnung": tex(&format!("{} Monate ab {}", emp.durchrechnung_monate, time::fmt_date_de(time::parse_date(&emp.durchrechnung_start).unwrap_or(from)))),
@@ -379,11 +384,145 @@ pub async fn render_month_pdf(db: &SqlitePool, data_dir: &Path, s: &Settings, em
         "unterschrift_1": tex(&s.unterschrift_1),
         "unterschrift_2": tex(&s.unterschrift_2),
     });
+    render_template(data_dir, TEMPLATE, &ctx).await
+}
+
+async fn render_template(data_dir: &Path, template: &str, ctx: &Value) -> ApiResult<Vec<u8>> {
     let mut env = minijinja::Environment::new();
     env.set_auto_escape_callback(|_| minijinja::AutoEscape::None);
-    env.add_template("m", TEMPLATE).map_err(|e| anyhow::anyhow!("Template: {e}"))?;
-    let tex_src = env.get_template("m").unwrap().render(&ctx).map_err(|e| anyhow::anyhow!("Template render: {e}"))?;
+    env.add_template("m", template).map_err(|e| anyhow::anyhow!("Template: {e}"))?;
+    let tex_src = env.get_template("m").unwrap().render(ctx).map_err(|e| anyhow::anyhow!("Template render: {e}"))?;
     compile_latex(data_dir, &tex_src).await
+}
+
+fn logo_for(data_dir: &Path, s: &Settings) -> Option<String> {
+    match &s.logo_data_url {
+        Some(url) if url.starts_with("data:image/png") || url.starts_with("data:image/jpeg") => {
+            decode_logo(data_dir, url).ok().map(|p| p.to_string_lossy().replace('\\', "/"))
+        }
+        _ => None,
+    }
+}
+
+fn base_ctx(data_dir: &Path, s: &Settings) -> serde_json::Map<String, Value> {
+    let mut m = serde_json::Map::new();
+    m.insert("primary_hex".into(), json!(s.primaerfarbe.trim_start_matches('#').to_uppercase()));
+    m.insert("firmenname".into(), json!(tex(&s.firmenname)));
+    m.insert("fusszeile".into(), json!(tex(&s.fusszeile)));
+    m.insert("erstellt_am".into(), json!(time::to_local(time::now_utc()).format("%d.%m.%Y %H:%M").to_string()));
+    m.insert("logo".into(), json!(logo_for(data_dir, s)));
+    m
+}
+
+fn de_opt(v: &Value) -> String {
+    v.as_str().and_then(time::parse_date).map(time::fmt_date_de).unwrap_or_default()
+}
+
+fn year_opt(v: &Value) -> String {
+    v.as_str().and_then(time::parse_date).map(|d| d.format("%Y").to_string()).unwrap_or_default()
+}
+
+fn vacation_row(acct: &Value) -> serde_json::Map<String, Value> {
+    let f = |k: &str| fmt_days(acct[k].as_f64().unwrap_or(0.0));
+    let verfall = acct["verfall_manuell"].as_f64().unwrap_or(0.0) + acct["verfall_auto"].as_f64().unwrap_or(0.0);
+    let nv = acct["naechster_verfall"].as_object().map(|n| {
+        format!("{} Tage aus {} verfallen am {}", fmt_days(n["tage"].as_f64().unwrap_or(0.0)), year_opt(&n["aus_urlaubsjahr"]), de_opt(&n["am"]))
+    });
+    let mut m = serde_json::Map::new();
+    m.insert("jahr".into(), json!(format!("{} – {}", de_opt(&acct["urlaubsjahr_von"]), de_opt(&acct["urlaubsjahr_bis"]))));
+    m.insert("anspruch".into(), json!(f("anspruch")));
+    m.insert("aliquot".into(), json!(acct["anspruch_aliquot"].as_bool().unwrap_or(false)));
+    m.insert("uebertrag".into(), json!(f("uebertrag")));
+    m.insert("korrektur".into(), json!(if acct["korrektur"].as_f64().unwrap_or(0.0) != 0.0 { Some(f("korrektur")) } else { None }));
+    m.insert("verfall".into(), json!(if verfall != 0.0 { Some(fmt_days(verfall)) } else { None }));
+    m.insert("verbraucht".into(), json!(f("verbrauch_bis_stichtag")));
+    m.insert("geplant".into(), json!(f("geplant")));
+    m.insert("rest".into(), json!(f("rest")));
+    m.insert("naechster_verfall".into(), json!(nv.map(|t| tex(&t))));
+    m
+}
+
+#[derive(Deserialize)]
+struct StichtagQuery {
+    stichtag: Option<String>,
+}
+
+async fn vacation_pdf(
+    State(state): State<AppState>,
+    CurrentUser(user): CurrentUser,
+    AxPath(id): AxPath<i64>,
+    Query(q): Query<StichtagQuery>,
+) -> ApiResult<Response> {
+    if !user.is_admin() && user.id != id {
+        return Err(AppError::Forbidden);
+    }
+    let emp = db::get_employee(&state.db, id).await?;
+    let as_of = q.stichtag.as_deref().and_then(time::parse_date).unwrap_or_else(time::today_local);
+    let acct = crate::absences::vacation_account(&state.db, &emp, as_of).await?;
+    let s = settings::load(&state.db).await?;
+    let mut ctx = base_ctx(&state.data_dir, &s);
+    for (k, v) in vacation_row(&acct) {
+        ctx.insert(k, v);
+    }
+    ctx.insert("mitarbeiter".into(), json!(tex(&emp.display_name())));
+    ctx.insert("personalnr".into(), json!(tex(&emp.personalnr)));
+    ctx.insert("eintritt".into(), json!(time::parse_date(&emp.eintritt).map(time::fmt_date_de).unwrap_or_default()));
+    ctx.insert("stichtag".into(), json!(time::fmt_date_de(as_of)));
+    ctx.insert("urlaubsjahr".into(), json!(year_opt(&acct["urlaubsjahr_von"])));
+    ctx.insert("jahr_von".into(), json!(de_opt(&acct["urlaubsjahr_von"])));
+    ctx.insert("jahr_bis".into(), json!(de_opt(&acct["urlaubsjahr_bis"])));
+    let arr = |k: &str| acct[k].as_array().cloned().unwrap_or_default();
+    ctx.insert("offene".into(), json!(arr("offene_ansprueche").iter().map(|b| json!({
+        "jahr": year_opt(&b["aus_urlaubsjahr"]),
+        "tage": fmt_days(b["tage"].as_f64().unwrap_or(0.0)),
+    })).collect::<Vec<_>>()));
+    ctx.insert("buchungen".into(), json!(arr("buchungen").iter().map(|b| json!({
+        "von": de_opt(&b["von"]),
+        "bis": de_opt(&b["bis"]),
+        "art": tex(b["label"].as_str().unwrap_or("")),
+        "tage": fmt_days(b["tage"].as_f64().unwrap_or(0.0)),
+        "kommentar": tex(b["kommentar"].as_str().unwrap_or("")),
+    })).collect::<Vec<_>>()));
+    ctx.insert("eintraege".into(), json!(arr("eintraege").iter().map(|e| json!({
+        "art": tex(e["art"].as_str().unwrap_or("")),
+        "tage": fmt_days(e["tage"].as_f64().unwrap_or(0.0)),
+        "grund": tex(e["grund"].as_str().unwrap_or("")),
+    })).collect::<Vec<_>>()));
+    ctx.insert("historie".into(), json!(arr("historie").iter().map(|h| json!({
+        "jahr": year_opt(&h["urlaubsjahr_von"]),
+        "anspruch": fmt_days(h["anspruch"].as_f64().unwrap_or(0.0)),
+        "uebertrag": fmt_days(h["uebertrag"].as_f64().unwrap_or(0.0)),
+        "korrektur": fmt_days(h["korrektur"].as_f64().unwrap_or(0.0)),
+        "verbrauch": fmt_days(h["verbrauch"].as_f64().unwrap_or(0.0)),
+        "verfall": fmt_days(h["verfall_manuell"].as_f64().unwrap_or(0.0) + h["verfall_auto"].as_f64().unwrap_or(0.0)),
+        "rest": fmt_days(h["rest"].as_f64().unwrap_or(0.0)),
+    })).collect::<Vec<_>>()));
+    let bytes = render_template(&state.data_dir, TEMPLATE_URLAUB, &Value::Object(ctx)).await?;
+    Ok(pdf_response(bytes, &format!("Urlaubskartei_{}_{}.pdf", as_of.format("%Y"), safe_name(&emp.display_name()))))
+}
+
+async fn vacation_overview_pdf(State(state): State<AppState>, AdminUser(_): AdminUser, Query(q): Query<StichtagQuery>) -> ApiResult<Response> {
+    let as_of = q.stichtag.as_deref().and_then(time::parse_date).unwrap_or_else(time::today_local);
+    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND personalnr != '0' ORDER BY nachname, vorname")
+        .fetch_all(&state.db).await?;
+    let mut rows = Vec::new();
+    for e in emps {
+        let acct = crate::absences::vacation_account(&state.db, &e, as_of).await?;
+        let mut r = vacation_row(&acct);
+        r.insert("personalnr".into(), json!(tex(&e.personalnr)));
+        r.insert("name".into(), json!(tex(&e.display_name())));
+        let verfall = r.get("verfall").and_then(|v| v.as_str().map(String::from)).unwrap_or_else(|| "0".into());
+        r.insert("verfall".into(), json!(verfall));
+        let nv = r.get("naechster_verfall").and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
+        r.insert("naechster_verfall".into(), json!(nv));
+        rows.push(Value::Object(r));
+    }
+    let s = settings::load(&state.db).await?;
+    let mut ctx = base_ctx(&state.data_dir, &s);
+    ctx.insert("stichtag".into(), json!(time::fmt_date_de(as_of)));
+    ctx.insert("rows".into(), json!(rows));
+    let bytes = render_template(&state.data_dir, TEMPLATE_URLAUB_UEBERSICHT, &Value::Object(ctx)).await?;
+    Ok(pdf_response(bytes, &format!("Urlaubsuebersicht_{}.pdf", time::fmt_date(as_of))))
 }
 
 fn fmt_days(d: f64) -> String {

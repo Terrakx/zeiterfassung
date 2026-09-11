@@ -10,7 +10,7 @@
   const offen = $derived(rows.reduce((s, r) => s + r.offene_antraege, 0));
 </script>
 
-<h1>Übersicht heute</h1>
+<div class="row" style="justify-content:space-between"><h1 style="margin:0 0 1rem">Übersicht heute</h1><a class="btn" href="/api/reports/vacation-overview/pdf" target="_blank">Urlaubsübersicht PDF</a></div>
 {#if error}<div class="alert err">{error}</div>{/if}
 {#if offen}<div class="alert info"><a href="/admin/antraege">{offen} offene Anträge</a></div>{/if}
 <div class="card table-wrap" style="padding:0">

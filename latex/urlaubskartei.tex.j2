@@ -1,0 +1,97 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[a4paper,margin=18mm,top=20mm,bottom=20mm]{geometry}
+\usepackage{fontspec}
+\setmainfont{Latin Modern Sans}
+\usepackage[table]{xcolor}
+\usepackage{longtable,booktabs,array,graphicx,fancyhdr,lastpage}
+\usepackage[german]{babel}
+\definecolor{primary}{HTML}{ {{- primary_hex -}} }
+\definecolor{muted}{HTML}{667085}
+\definecolor{neg}{HTML}{C0392B}
+\renewcommand{\arraystretch}{1.15}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\textcolor{muted}{ {{- firmenname -}} \ · Urlaubskartei}}
+\rhead{\small\textcolor{muted}{ {{- mitarbeiter -}} \ · Stichtag {{ stichtag }} · erstellt {{ erstellt_am }} }}
+\lfoot{\scriptsize\textcolor{muted}{ {{- fusszeile -}} }}
+\setlength{\LTleft}{0pt}\setlength{\LTright}{\fill}
+\rfoot{\scriptsize\textcolor{muted}{Seite \thepage\ von \pageref{LastPage}}}
+\renewcommand{\headrulewidth}{0.3pt}
+\begin{document}
+
+{% if logo %}\includegraphics[height=11mm]{ {{- logo -}} }\\[2mm]{% endif %}
+{\LARGE\bfseries\textcolor{primary}{Urlaubskartei {{ urlaubsjahr }}}}\\[1.5mm]
+{\large {{ mitarbeiter }}}\quad\textcolor{muted}{Personalnummer {{ personalnr }} · Eintritt {{ eintritt }} · Urlaubsjahr {{ jahr_von }} bis {{ jahr_bis }}}
+
+\vspace{4mm}
+\begin{tabular}{@{}lr@{}}
+\toprule
+Anspruch{% if aliquot %} (aliquot){% endif %} & {{ anspruch }} Tage\\
+Übertrag aus Vorjahren & {{ uebertrag }} Tage\\
+{% if korrektur %}Korrekturen & {{ korrektur }} Tage\\{% endif %}
+{% if verfall %}Verfall & {{ verfall }} Tage\\{% endif %}
+Verbraucht bis Stichtag & {{ verbraucht }} Tage\\
+Genehmigt, noch nicht angetreten & {{ geplant }} Tage\\
+\midrule
+\textbf{Resturlaub} & \textbf{ {{- rest -}} \ Tage}\\
+\bottomrule
+\end{tabular}
+\hfill
+\begin{tabular}[t]{@{}lr@{}}
+\toprule
+\textbf{Offene Ansprüche} & \textbf{Tage}\\
+\midrule
+{% for b in offene %}aus Urlaubsjahr {{ b.jahr }} & {{ b.tage }}\\
+{% endfor %}
+\bottomrule
+\end{tabular}
+
+{% if naechster_verfall %}
+\vspace{2mm}\noindent\small\textcolor{neg}{Hinweis: {{ naechster_verfall }}}
+{% endif %}
+
+\vspace{5mm}
+\noindent\textbf{Verbrauch im Urlaubsjahr}
+
+\begin{longtable}{@{}l l l r l@{}}
+\toprule
+\textbf{Von} & \textbf{Bis} & \textbf{Art} & \textbf{Tage} & \textbf{Kommentar}\\
+\midrule
+\endhead
+{% for b in buchungen %}{{ b.von }} & {{ b.bis }} & {{ b.art }} & {{ b.tage }} & {\small {{ b.kommentar }}}\\
+{% endfor %}
+{% if not buchungen %}\multicolumn{5}{l}{\textcolor{muted}{Kein Verbrauch.}}\\{% endif %}
+\bottomrule
+\end{longtable}
+
+{% if eintraege %}
+\noindent\textbf{Einträge der Verwaltung}
+
+\begin{tabular}{@{}l r l@{}}
+\toprule
+\textbf{Art} & \textbf{Tage} & \textbf{Begründung}\\
+\midrule
+{% for e in eintraege %}{{ e.art }} & {{ e.tage }} & {\small {{ e.grund }}}\\
+{% endfor %}
+\bottomrule
+\end{tabular}
+{% endif %}
+
+{% if historie %}
+\vspace{5mm}
+\noindent\textbf{Vorjahre}
+
+\begin{tabular}{@{}l r r r r r r@{}}
+\toprule
+\textbf{Urlaubsjahr} & \textbf{Anspruch} & \textbf{Übertrag} & \textbf{Korrektur} & \textbf{Verbrauch} & \textbf{Verfall} & \textbf{Rest}\\
+\midrule
+{% for h in historie %}{{ h.jahr }} & {{ h.anspruch }} & {{ h.uebertrag }} & {{ h.korrektur }} & {{ h.verbrauch }} & {{ h.verfall }} & {{ h.rest }}\\
+{% endfor %}
+\bottomrule
+\end{tabular}
+{% endif %}
+
+\vspace{4mm}
+\noindent{\scriptsize\textcolor{muted}{Urlaub wird in Arbeitstagen laut Wochenmodell geführt; Feiertage zählen nicht. Verbrauch nach dem ältesten Anspruch zuerst. Ansprüche verjähren zwei Jahre nach Ende des Urlaubsjahres, in dem sie entstanden sind (§ 4 Abs 5 UrlG).}}
+
+\end{document}

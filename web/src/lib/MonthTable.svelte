@@ -5,8 +5,10 @@
     month: any;
     admin?: boolean;
     onstorno?: (punchId: number) => void;
+    /** Mitarbeiter: Korrekturantrag für einen Tag stellen */
+    onrequest?: (day: any) => void;
   }
-  let { month, admin = false, onstorno }: Props = $props();
+  let { month, admin = false, onstorno, onrequest }: Props = $props();
   const today = todayIso();
 
   function isWeekend(d: any) {
@@ -54,13 +56,16 @@
           <td class="right mono" class:pos={d.diff_min > 0} class:neg={d.diff_min < 0}>{d.target_min || d.worked_min || d.diff_min ? hm(d.diff_min, true) : ''}</td>
           <td class="small">
             {#if d.warnings.length}<ul class="warn-list" style="margin:0">{#each d.warnings as w}<li>{warningText(w)}</li>{/each}</ul>{/if}
-            {#if admin && d.punches.length}
+            {#if (admin || onrequest) && d.punches.length}
               <div class="muted" style="margin-top:.2rem">
                 {#each d.punches as p}
                   <span class="mono">{p.zeit}</span> {PUNCH_LABELS[p.art]} <span class="muted">({p.quelle})</span>
-                  {#if onstorno}<button class="small" style="padding:0 .3rem" title="Stornieren" onclick={() => onstorno(p.id)}>×</button>{/if}<br />
+                  {#if admin && onstorno}<button class="small" style="padding:0 .3rem" title="Stornieren" onclick={() => onstorno(p.id)}>×</button>{/if}<br />
                 {/each}
               </div>
+            {/if}
+            {#if onrequest && !d.future && !month.geschlossen && (d.is_working_day || d.punches.length)}
+              <button class="small" style="padding:.1rem .4rem;margin-top:.2rem" onclick={() => onrequest(d)}>Korrektur beantragen</button>
             {/if}
           </td>
         </tr>

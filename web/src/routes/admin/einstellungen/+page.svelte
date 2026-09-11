@@ -68,6 +68,7 @@
       <h3 style="margin-top:0">Urlaub</h3>
       <label><input type="checkbox" bind:checked={s.urlaub_halbe_tage} />Halbe Urlaubstage erlauben</label>
       <label><input type="checkbox" bind:checked={s.urlaub_stunden} />Stundenweisen Urlaub erlauben</label>
+      <label><input type="checkbox" bind:checked={s.urlaub_verfall_auto} />Verfall automatisch berechnen (§ 4 Abs 5 UrlG: zwei Jahre nach Ende des Urlaubsjahres, Verbrauch vom ältesten Anspruch)</label>
       <div class="field" style="margin-top:.6rem"><label for="uh">Hinweistext bei halben Tagen / Stunden</label><textarea id="uh" rows="3" bind:value={s.urlaub_hinweis}></textarea></div>
     </div>
     <div class="card">

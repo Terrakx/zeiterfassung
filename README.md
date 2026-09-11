@@ -74,8 +74,12 @@ Die Serveruhr bestimmt die Stempelzeit. Ohne NTP-Zugang die Hardware-Uhr regelm�
   Übertragsgrenze) in den Gutstundentopf vor (Vollzeit 307, Teilzeit 311, Feiertag 308).
   Zeitausgleich verbraucht den Standard-Topf.
 - Urlaub in Arbeitstagen laut Wochenmodell, Feiertage zählen nicht. Halbe Tage und Stunden nur
-  nach Freigabe in den Einstellungen, mit Hinweistext. Erstes Urlaubsjahr aliquot; Übertrag
-  und Verfall über Einträge im Urlaubskonto.
+  nach Freigabe in den Einstellungen, mit Hinweistext. Erstes Urlaubsjahr aliquot. Verbrauch
+  nach FIFO vom ältesten Anspruch; Ansprüche verfallen automatisch zwei Jahre nach Ende des
+  Urlaubsjahres (§ 4 Abs 5 UrlG, abschaltbar). Ein expliziter Übertrag-Eintrag ersetzt die
+  durchgerechneten Vorjahre (für den Systemstart). Urlaubskartei und Urlaubsübersicht als PDF.
+- Korrekturanträge: Mitarbeiter beantragen das Nachtragen oder Streichen einer Stempelung mit
+  Begründung; die Verwaltung genehmigt oder lehnt ab. Offene Anträge blockieren den Monatsabschluss.
 - Krankenstände werden standardmäßig nicht exportiert (ÖGK-Import in BMD), Schalter vorhanden.
 
 ## BMD-Export
@@ -101,15 +105,14 @@ MONAT;FIRMA;MA;LOHNART;MENGE;BETRAG;MONAT_A;NLZ_K;NLZ_V;NLZ_B;NLZ_VER;ABM_DIVNLZ
 ## Status und offene Punkte
 
 Umgesetzt und lokal getestet: Stammdaten, Wochenmodelle, Terminal und Portal, Abwesenheiten mit
-Genehmigung, Urlaubs- und Gutstundenkonto, Monatsabschluss mit PDF (LuaLaTeX), BMD-CSV inklusive
-Korrekturexport, Periodenabschluss, Audit-Log, Backup-Download.
+Genehmigung, Korrekturanträge zu Stempelungen, Urlaubs- und Gutstundenkonto mit automatischem
+Verfall, Urlaubskartei und Urlaubsübersicht als PDF, Monatsabschluss mit PDF (LuaLaTeX), BMD-CSV
+inklusive Korrekturexport, Periodenabschluss, Audit-Log, Backup-Download.
 
 Noch nicht erledigt oder zu klären:
 
 - Docker-Image ist geschrieben, aber ohne Docker auf dem Entwicklungsrechner ungetestet.
 - Löschzeilen (Verbuchungsart 1) für Gutstunden-Töpfe und die Spalte `ABM_DIVNLZID` mit dem
   Lohnverrechner in der BMD-Importvorschau prüfen.
-- Korrekturantrag durch Mitarbeiter bei vergessener Stempelung (derzeit nur über die Verwaltung).
-- Weitere Berichte: Urlaubskartei pro Jahr, Jahresübersicht der Salden.
-- Verfall von Alturlaub (2 Jahre) wird nicht automatisch gebucht, nur manuell als Eintrag.
+- Jahresübersicht der Gleitzeitsalden als Bericht.
 - Offene Fragen an den Kunden: siehe [UMSETZUNGSPLAN.md](UMSETZUNGSPLAN.md), Abschnitt 9.

@@ -7,6 +7,7 @@ mod employees;
 mod error;
 mod export;
 mod holidays;
+mod punch_requests;
 mod punches;
 mod reports;
 mod settings;
@@ -56,6 +57,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(settings::router())
         .merge(employees::router())
         .merge(punches::router())
+        .merge(punch_requests::router())
         .merge(absences::router())
         .merge(holidays::router())
         .merge(calc::router())

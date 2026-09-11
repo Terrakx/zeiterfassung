@@ -3,6 +3,7 @@
   import { api, errMsg } from '$lib/api';
   import { dateDe, STATUS_LABEL, days } from '$lib/fmt';
   import AbsenceForm from '$lib/AbsenceForm.svelte';
+  import { user } from '$lib/stores';
 
   let list = $state<any[]>([]);
   let account = $state<any>(null);
@@ -54,6 +55,10 @@
           <tr><th>Rest</th><th class="right">{days(account.urlaub.rest)} Tage</th></tr>
         </tbody>
       </table>
+      {#if account.urlaub.naechster_verfall}
+        <p class="small" style="color:var(--warn)">{days(account.urlaub.naechster_verfall.tage)} Tage aus {account.urlaub.naechster_verfall.aus_urlaubsjahr.slice(0, 4)} verfallen am {dateDe(account.urlaub.naechster_verfall.am)}.</p>
+      {/if}
+      <p class="small"><a href={`/api/reports/vacation/${$user?.id}/pdf`} target="_blank">Urlaubskartei als PDF</a></p>
       <h3>Gutstunden</h3>
       <table>
         <tbody>

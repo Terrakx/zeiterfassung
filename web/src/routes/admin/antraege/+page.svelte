@@ -1,14 +1,27 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api, errMsg } from '$lib/api';
-  import { dateDe, STATUS_LABEL } from '$lib/fmt';
+  import { dateDe, STATUS_LABEL, PUNCH_LABELS } from '$lib/fmt';
 
   let status = $state('beantragt');
   let list = $state<any[]>([]);
+  let corrections = $state<any[]>([]);
   let error = $state('');
 
   async function load() {
-    try { list = await api.get(`/admin/absences?status=${status}`); } catch (e) { error = errMsg(e); }
+    try {
+      [list, corrections] = await Promise.all([
+        api.get<any[]>(`/admin/absences?status=${status}`),
+        api.get<any[]>(`/admin/punch-requests?status=${status}`)
+      ]);
+    } catch (e) { error = errMsg(e); }
+  }
+  async function decideCorrection(id: number, s: 'genehmigt' | 'abgelehnt') {
+    const kommentar = s === 'abgelehnt' ? prompt('Begründung für die Ablehnung:') ?? '' : '';
+    if (s === 'abgelehnt' && !kommentar) return;
+    error = '';
+    try { await api.post(`/punch-requests/${id}/decide`, { status: s, kommentar }); await load(); }
+    catch (e) { error = errMsg(e); }
   }
   onMount(load);
 
@@ -60,6 +73,32 @@
         </tr>
       {:else}
         <tr><td colspan="8" class="muted">Keine Einträge.</td></tr>
+      {/each}
+    </tbody>
+  </table>
+</div>
+
+<h2>Korrekturanträge zu Stempelungen</h2>
+<div class="card table-wrap" style="padding:0">
+  <table>
+    <thead><tr><th>Mitarbeiter</th><th>Datum</th><th>Antrag</th><th>Begründung</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {#each corrections as c}
+        <tr>
+          <td>{c.name} <span class="muted small">({c.personalnr})</span></td>
+          <td class="mono">{dateDe(c.datum)}</td>
+          <td>{#if c.typ === 'einfuegen'}{PUNCH_LABELS[c.art]} {c.zeit} nachtragen{:else}Streichen: {c.punch?.zeit ?? ''} {PUNCH_LABELS[c.punch?.art] ?? ''}{/if}</td>
+          <td class="small">{c.begruendung}</td>
+          <td><span class="badge">{STATUS_LABEL[c.status]}</span></td>
+          <td class="row" style="flex-wrap:nowrap">
+            {#if c.status === 'beantragt'}
+              <button class="primary" onclick={() => decideCorrection(c.id, 'genehmigt')}>Genehmigen</button>
+              <button onclick={() => decideCorrection(c.id, 'abgelehnt')}>Ablehnen</button>
+            {/if}
+          </td>
+        </tr>
+      {:else}
+        <tr><td colspan="6" class="muted">Keine Einträge.</td></tr>
       {/each}
     </tbody>
   </table>
