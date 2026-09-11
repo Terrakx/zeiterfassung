@@ -102,7 +102,7 @@
         {#if status.zustand === 'arbeitet'}eingestempelt seit {status.heute.at(-1)?.zeit}
         {:else if status.zustand === 'pause'}in Pause seit {status.heute.at(-1)?.zeit}
         {:else}nicht eingestempelt{/if}
-        · heute {hm(status.tag.worked_min)} · Saldo {hm(status.saldo_min, true)}
+        · heute {hm(status.tag.worked_min)} · Saldo bis gestern {hm(status.saldo_min, true)}
       </div>
     </div>
     <div class="actions">
@@ -121,7 +121,7 @@
     <div style="text-align:center">
       <div style="font-size:1.6rem;font-weight:600">{status.name}</div>
       <div style="font-size:2rem;color:var(--ok)">✓ {PUNCH_LABELS[status.heute.at(-1)?.art]} {status.heute.at(-1)?.zeit}</div>
-      <div class="muted">heute {hm(status.tag.worked_min)} · Saldo {hm(status.saldo_min, true)}</div>
+      <div class="muted">heute {hm(status.tag.worked_min)} · Saldo bis gestern {hm(status.saldo_min, true)}</div>
     </div>
     <button onclick={reset}>Fertig</button>
   {/if}

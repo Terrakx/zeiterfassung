@@ -12,8 +12,8 @@
     const y = new Date().getFullYear();
     try {
       [list, account] = await Promise.all([
-        api.get(`/absences?von=${y - 1}-01-01&bis=${y + 1}-12-31`),
-        api.get('/absences/account')
+        api.get<any[]>(`/absences?von=${y - 1}-01-01&bis=${y + 1}-12-31`),
+        api.get<any>('/absences/account')
       ]);
     } catch (e) {
       error = errMsg(e);

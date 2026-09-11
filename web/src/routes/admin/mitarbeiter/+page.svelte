@@ -69,7 +69,7 @@
       <div class="field"><label for="pw">Passwort (leer = kein Portal-Login)</label><input id="pw" type="text" bind:value={f.passwort} autocomplete="off" /></div>
       <div class="field"><label for="pi">Terminal-PIN (4 bis 8 Ziffern)</label><input id="pi" type="text" bind:value={f.pin} inputmode="numeric" autocomplete="off" /></div>
     </div>
-    <label>Wochenmodell Stunden Mo–So</label>
+    <p class="small muted" style="margin:0 0 .3rem">Wochenmodell Stunden Mo–So</p>
     <div class="row" style="margin-bottom:1rem">
       {#each ['Mo','Di','Mi','Do','Fr','Sa','So'] as d, i}
         <div style="width:64px"><label for={'w'+i} style="text-align:center">{d}</label><input id={'w'+i} type="number" step="0.25" min="0" max="24" bind:value={f.wochenmodell[i]} /></div>

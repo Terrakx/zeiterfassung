@@ -89,8 +89,27 @@ MONAT;FIRMA;MA;LOHNART;MENGE;BETRAG;MONAT_A;NLZ_K;NLZ_V;NLZ_B;NLZ_VER;ABM_DIVNLZ
 
 - `MONAT` = Abrechnungsmonat = Datenmonat + 1.
 - Erster Export eines Monats: Verbuchungsart 3 (neu anlegen/zusammenhängen). Jeder weitere
-  Export desselben Monats ist ein Korrekturexport mit Verbuchungsart 2 (neu anlegen/ändern), der
-  überschneidende Einträge in BMD ersetzt.
+  Export desselben Monats ist ein Korrekturexport: alle aktuellen Zeilen mit Verbuchungsart 2
+  (neu anlegen/ändern, ersetzt überschneidende Einträge in BMD) plus Löschzeilen mit
+  Verbuchungsart 1 für Einträge, die im letzten Export enthalten waren und jetzt fehlen
+  (gleicher Zeitraum, daher exakt löschbar).
 - Abwesenheiten werden im Monat ihres Beginns exportiert, auch wenn sie in den Folgemonat reichen.
 - Gutstunden: eine Zeile je Mitarbeiter und Topf mit dem Monatsdelta (Aufbau positiv, Abbau negativ).
-- Export erst möglich, wenn alle Monate abgeschlossen sind.
+- Export erst möglich, wenn alle Monate abgeschlossen sind. Jeder Export wird mit Inhalt,
+  SHA-256 und Zeitstempel archiviert.
+
+## Status und offene Punkte
+
+Umgesetzt und lokal getestet: Stammdaten, Wochenmodelle, Terminal und Portal, Abwesenheiten mit
+Genehmigung, Urlaubs- und Gutstundenkonto, Monatsabschluss mit PDF (LuaLaTeX), BMD-CSV inklusive
+Korrekturexport, Periodenabschluss, Audit-Log, Backup-Download.
+
+Noch nicht erledigt oder zu klären:
+
+- Docker-Image ist geschrieben, aber ohne Docker auf dem Entwicklungsrechner ungetestet.
+- Löschzeilen (Verbuchungsart 1) für Gutstunden-Töpfe und die Spalte `ABM_DIVNLZID` mit dem
+  Lohnverrechner in der BMD-Importvorschau prüfen.
+- Korrekturantrag durch Mitarbeiter bei vergessener Stempelung (derzeit nur über die Verwaltung).
+- Weitere Berichte: Urlaubskartei pro Jahr, Jahresübersicht der Salden.
+- Verfall von Alturlaub (2 Jahre) wird nicht automatisch gebucht, nur manuell als Eintrag.
+- Offene Fragen an den Kunden: siehe [UMSETZUNGSPLAN.md](UMSETZUNGSPLAN.md), Abschnitt 9.

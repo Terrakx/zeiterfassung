@@ -225,11 +225,42 @@ struct MonthQuery {
     monat: String,
 }
 
+/// Schlüssel einer Zeile für den Vergleich zweier Exporte (ohne Verbuchungsart).
+fn row_key(r: &BmdRow) -> (String, String, String, String, String) {
+    let typ = r.nlz_k.chars().skip(1).collect::<String>();
+    (r.ma.clone(), typ, r.nlz_v.clone(), r.nlz_b.clone(), r.divnlz.clone())
+}
+
+/// Zeilen für den Export: beim ersten Export Verbuchungsart 3, danach Korrektur mit Verbuchungsart 2
+/// plus Löschzeilen (Verbuchungsart 1) für alles, was im letzten Export enthalten war und jetzt fehlt.
+pub async fn export_rows(db: &SqlitePool, monat: &str) -> ApiResult<(Vec<BmdRow>, u32, &'static str)> {
+    let last: Option<(String,)> = sqlx::query_as("SELECT inhalt FROM export_runs WHERE datenmonat = ? ORDER BY id DESC LIMIT 1")
+        .bind(monat).fetch_optional(db).await?;
+    let Some((inhalt,)) = last else {
+        return Ok((build_rows(db, monat, 3).await?, 3, "voll"));
+    };
+    let current = build_rows(db, monat, 2).await?;
+    let previous: Vec<BmdRow> = serde_json::from_str(&inhalt).unwrap_or_default();
+    let keys: std::collections::HashSet<_> = current.iter().map(row_key).collect();
+    let mut rows: Vec<BmdRow> = previous
+        .into_iter()
+        .filter(|r| !r.nlz_k.starts_with('1') && !keys.contains(&row_key(r)))
+        .map(|mut r| {
+            let typ: String = r.nlz_k.chars().skip(1).collect();
+            r.nlz_k = format!("1{typ}");
+            r.menge.clear();
+            r.nlz_ver.clear();
+            r.beschreibung = format!("LÖSCHEN: {}", r.beschreibung);
+            r
+        })
+        .collect();
+    rows.extend(current);
+    Ok((rows, 2, "korrektur"))
+}
+
 async fn preview(State(state): State<AppState>, AdminUser(_): AdminUser, Query(q): Query<MonthQuery>) -> ApiResult<Json<Value>> {
-    let prior: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM export_runs WHERE datenmonat = ?").bind(&q.monat).fetch_one(&state.db).await?;
-    let verbuchung = if prior == 0 { 3 } else { 2 };
-    let rows = build_rows(&state.db, &q.monat, verbuchung).await?;
-    Ok(Json(json!({ "verbuchungsart": verbuchung, "art": if prior == 0 { "voll" } else { "korrektur" }, "header": HEADER, "rows": rows })))
+    let (rows, verbuchung, art) = export_rows(&state.db, &q.monat).await?;
+    Ok(Json(json!({ "verbuchungsart": verbuchung, "art": art, "header": HEADER, "rows": rows })))
 }
 
 async fn create(State(state): State<AppState>, AdminUser(admin): AdminUser, Json(q): Json<MonthQuery>) -> ApiResult<Json<Value>> {
@@ -245,9 +276,7 @@ async fn create(State(state): State<AppState>, AdminUser(admin): AdminUser, Json
     if open > 0 {
         return Err(AppError::Conflict(format!("{open} Mitarbeiter ohne Monatsabschluss. Bitte zuerst alle Monate abschließen.")));
     }
-    let prior: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM export_runs WHERE datenmonat = ?").bind(&q.monat).fetch_one(&state.db).await?;
-    let (verbuchung, art) = if prior == 0 { (3, "voll") } else { (2, "korrektur") };
-    let rows = build_rows(&state.db, &q.monat, verbuchung).await?;
+    let (rows, _verbuchung, art) = export_rows(&state.db, &q.monat).await?;
     let s = settings::load(&state.db).await?;
     let mut text = String::new();
     if s.bmd_kopfzeile {

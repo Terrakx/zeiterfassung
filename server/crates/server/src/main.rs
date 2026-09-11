@@ -1,4 +1,5 @@
 mod absences;
+mod admin;
 mod auth;
 mod calc;
 mod db;
@@ -60,6 +61,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(calc::router())
         .merge(reports::router())
         .merge(export::router())
+        .merge(admin::router())
         .route("/health", get(|| async { "ok" }));
 
     let app = Router::new()

@@ -16,9 +16,9 @@
     error = '';
     try {
       [data, exports, periods] = await Promise.all([
-        api.get(`/reports/month-status?monat=${monat}`),
-        api.get(`/export/runs?monat=${monat}`),
-        api.get(`/export/periods?monat=${monat}`)
+        api.get<any>(`/reports/month-status?monat=${monat}`),
+        api.get<any[]>(`/export/runs?monat=${monat}`),
+        api.get<any[]>(`/export/periods?monat=${monat}`)
       ]);
       preview = null;
     } catch (e) { error = errMsg(e); }

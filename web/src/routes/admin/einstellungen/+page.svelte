@@ -79,4 +79,9 @@
     </div>
     <button class="primary">Speichern</button>
   </form>
+  <div class="card" style="margin-top:1rem">
+    <h3 style="margin-top:0">System</h3>
+    <p class="small muted">Erzeugt eine konsistente Kopie der Datenbank. PDFs und CSV-Exporte liegen zusätzlich im Datenverzeichnis unter <code>exports/</code>; für ein vollständiges Backup das Skript <code>deploy/backup.sh</code> verwenden.</p>
+    <a class="btn" href="/api/admin/backup">Datenbank-Backup herunterladen</a>
+  </div>
 {/if}

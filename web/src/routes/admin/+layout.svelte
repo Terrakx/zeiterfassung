@@ -8,7 +8,8 @@
     ['/admin/antraege', 'Anträge', false],
     ['/admin/abschluss', 'Abschluss & Export', false],
     ['/admin/feiertage', 'Feiertage', false],
-    ['/admin/einstellungen', 'Einstellungen', false]
+    ['/admin/einstellungen', 'Einstellungen', false],
+    ['/admin/protokoll', 'Protokoll', false]
   ] as const;
   function active(path: string, exact: boolean) {
     const p = page.url.pathname;

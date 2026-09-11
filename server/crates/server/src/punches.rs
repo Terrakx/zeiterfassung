@@ -145,7 +145,8 @@ pub async fn status_json(db: &SqlitePool, emp: &Employee) -> ApiResult<Value> {
         .filter(|r| r.local().map(|p| p.at.date() == today).unwrap_or(false))
         .collect();
     let day = calc::day_for(db, emp, today).await?;
-    let saldo = calc::saldo_until(db, emp, today).await?;
+    // Saldo bis gestern: der laufende Tag ist erst nach „Gehen“ aussagekräftig.
+    let saldo = calc::saldo_until(db, emp, today - chrono::Duration::days(1)).await?;
     Ok(json!({
         "name": emp.display_name(),
         "personalnr": emp.personalnr,

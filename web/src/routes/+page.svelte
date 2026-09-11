@@ -81,7 +81,7 @@
       <div class="grid cols-3">
         <div class="stat"><span class="v mono">{hm(status.tag.worked_min)}</span><span class="l">Ist heute</span></div>
         <div class="stat"><span class="v mono">{hm(status.tag.target_min)}</span><span class="l">Soll heute</span></div>
-        <div class="stat"><span class="v mono" class:pos={status.saldo_min > 0} class:neg={status.saldo_min < 0}>{hm(status.saldo_min, true)}</span><span class="l">Gleitzeitsaldo</span></div>
+        <div class="stat"><span class="v mono" class:pos={status.saldo_min > 0} class:neg={status.saldo_min < 0}>{hm(status.saldo_min, true)}</span><span class="l">Gleitzeitsaldo bis gestern</span></div>
       </div>
       {#if account}
         <hr style="border:0;border-top:1px solid var(--border);margin:1rem 0" />
