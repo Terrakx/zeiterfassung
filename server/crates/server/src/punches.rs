@@ -140,24 +140,24 @@ pub async fn status_json(db: &SqlitePool, emp: &Employee) -> ApiResult<Value> {
     let rows = punches_between(db, emp.id, today - chrono::Duration::days(1), today).await?;
     let all: Vec<Punch> = rows.iter().filter_map(|r| r.local()).collect();
     let state = presence_state(&all);
-    let today_rows: Vec<&PunchRow> = rows
-        .iter()
-        .filter(|r| r.local().map(|p| p.at.date() == today).unwrap_or(false))
-        .collect();
-    let day = calc::day_for(db, emp, today).await?;
+    // Laufende Nachtschicht: begann die offene Schicht gestern, wird dieser Schichttag angezeigt.
+    let yesterday = today - chrono::Duration::days(1);
+    let ctx = calc::Context::load(db, emp, yesterday, today).await?;
+    let today_view = ctx.day(today);
+    let day = if state != PresenceState::Draussen && today_view.punches.is_empty() {
+        let y = ctx.day(yesterday);
+        if y.result.open_shift { y } else { today_view }
+    } else {
+        today_view
+    };
     // Saldo bis gestern: der laufende Tag ist erst nach „Gehen“ aussagekräftig.
-    let saldo = calc::saldo_until(db, emp, today - chrono::Duration::days(1)).await?;
+    let saldo = calc::saldo_until(db, emp, yesterday).await?;
     Ok(json!({
         "name": emp.display_name(),
         "personalnr": emp.personalnr,
         "zustand": state,
         "jetzt": time::to_local(now).format("%H:%M").to_string(),
-        "heute": today_rows.iter().map(|r| json!({
-            "id": r.id,
-            "zeit": r.local().map(|p| p.at.format("%H:%M").to_string()),
-            "art": r.art,
-            "quelle": r.quelle,
-        })).collect::<Vec<_>>(),
+        "heute": day.punches,
         "tag": day,
         "saldo_min": saldo,
     }))
