@@ -46,6 +46,8 @@ pub struct DayView {
     pub weekday: String,
     pub holiday_name: Option<String>,
     pub is_working_day: bool,
+    /// Tag liegt in der Zukunft: Soll wird angezeigt, aber nicht in Differenz und Saldo gerechnet.
+    pub future: bool,
     pub absences: Vec<AbsenceView>,
     pub punches: Vec<Value>,
 }
@@ -135,7 +137,8 @@ impl Context {
         }
         let mut rule = self.pause_rule;
         rule.auto_deduct = pause_auto;
-        let result = compute_day(&DayInput {
+        let future = date > time::today_local();
+        let mut result = compute_day(&DayInput {
             date,
             target_min: target,
             is_holiday,
@@ -144,11 +147,18 @@ impl Context {
             pause_rule: rule,
             previous_day_end: prev_end,
         });
+        if future {
+            result.diff_min = 0;
+            result.holiday_min = 0;
+            result.paid_absence_min = 0;
+            result.warnings.clear();
+        }
         DayView {
             result,
             weekday: weekday_de(date).into(),
             holiday_name: self.holidays.get(&date).cloned(),
             is_working_day: target > 0,
+            future,
             absences: abs_views,
             punches: punch_json,
         }

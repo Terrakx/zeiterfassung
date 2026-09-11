@@ -1,0 +1,22 @@
+# Host-basiertes Routing im LAN, ohne Internet. Standard: HTTP.
+# Für HTTPS mit lokaler CA die beiden Blöcke auf "https://…" umstellen und
+# "tls internal" aktivieren; das Caddy-Root-Zertifikat dann auf den Clients installieren.
+
+http://zeiterfassung.local {
+	encode gzip
+	reverse_proxy timecard:8080
+}
+
+http://timecard.local {
+	encode gzip
+	# Terminal-Kiosk: Startseite ist das Stempelterminal, API bleibt erreichbar.
+	@root path /
+	redir @root /terminal 302
+	reverse_proxy timecard:8080
+}
+
+# Fallback über IP-Adresse (z. B. http://192.168.1.10)
+http:// {
+	encode gzip
+	reverse_proxy timecard:8080
+}

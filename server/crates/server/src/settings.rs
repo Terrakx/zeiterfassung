@@ -21,6 +21,7 @@ pub struct Settings {
     pub bmd_firmennr: String,
     pub bmd_zeichensatz: String,          // "windows-1252" | "utf-8"
     pub bmd_krank_exportieren: bool,
+    pub bmd_kopfzeile: bool,              // Doku-Zeile mit Feldnamen als erste Zeile
     pub bmd_absonderung_divnlz: String,   // "101"
     pub topf_vollzeit: i64,               // 307
     pub topf_teilzeit: i64,               // 311
@@ -50,6 +51,7 @@ impl Default for Settings {
             bmd_firmennr: String::new(),
             bmd_zeichensatz: "windows-1252".into(),
             bmd_krank_exportieren: false,
+            bmd_kopfzeile: false,
             bmd_absonderung_divnlz: "101".into(),
             topf_vollzeit: 307,
             topf_teilzeit: 311,

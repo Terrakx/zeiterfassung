@@ -1,0 +1,120 @@
+:root {
+  --primary: #2f6f8f;
+  --primary-dark: #22546d;
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --text: #1c2430;
+  --muted: #667085;
+  --border: #d9dee5;
+  --ok: #1e8e5a;
+  --warn: #b7791f;
+  --err: #c0392b;
+  --radius: 8px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); }
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1 { font-size: 1.5rem; margin: 0 0 1rem; }
+h2 { font-size: 1.15rem; margin: 1.5rem 0 .6rem; }
+h3 { font-size: 1rem; margin: 1rem 0 .4rem; }
+p { line-height: 1.5; }
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  background: var(--primary); color: #fff; padding: 0 1rem; height: 52px;
+  display: flex; align-items: center; gap: 1rem;
+}
+.topbar .brand { font-weight: 600; display: flex; align-items: center; gap: .6rem; color: #fff; }
+.topbar .brand img { height: 30px; }
+.topbar nav { display: flex; gap: .25rem; flex-wrap: wrap; }
+.topbar nav a { color: #fff; padding: .4rem .7rem; border-radius: 6px; opacity: .9; }
+.topbar nav a:hover, .topbar nav a.active { background: rgba(255,255,255,.18); text-decoration: none; opacity: 1; }
+.topbar .spacer { flex: 1; }
+.topbar .user { font-size: .9rem; opacity: .9; }
+.topbar button { background: transparent; border: 1px solid rgba(255,255,255,.5); color: #fff; }
+main { flex: 1; width: 100%; max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+footer.foot { text-align: center; color: var(--muted); font-size: .8rem; padding: 1rem; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; margin-bottom: 1rem; }
+.grid { display: grid; gap: 1rem; }
+.grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.right { text-align: right; }
+.mono { font-variant-numeric: tabular-nums; }
+.pos { color: var(--ok); }
+.neg { color: var(--err); }
+
+button, .btn {
+  font: inherit; padding: .5rem .9rem; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); cursor: pointer;
+}
+button:hover { border-color: var(--primary); }
+button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+button.primary:hover { background: var(--primary-dark); }
+button.danger { color: var(--err); border-color: var(--err); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.big { font-size: 1.25rem; padding: 1.1rem 1.4rem; min-width: 160px; }
+
+label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: .2rem; }
+input, select, textarea {
+  font: inherit; width: 100%; padding: .5rem .6rem; border: 1px solid var(--border); border-radius: 6px; background: #fff;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--primary) 40%, transparent); border-color: var(--primary); }
+.field { margin-bottom: .8rem; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .6rem 1rem; }
+input[type="checkbox"] { width: auto; margin-right: .4rem; }
+
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+th, td { padding: .45rem .5rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .02em; }
+tr.weekend td { background: #fafbfc; color: var(--muted); }
+tr.holiday td { background: #fff8e6; }
+tr.today td { background: #eef5fa; }
+.table-wrap { overflow-x: auto; }
+
+.badge { display: inline-block; padding: .15rem .5rem; border-radius: 999px; font-size: .78rem; background: #e8edf2; color: var(--text); }
+.badge.ok { background: #dff3e8; color: var(--ok); }
+.badge.warn { background: #fdf0d5; color: var(--warn); }
+.badge.err { background: #fbe1de; color: var(--err); }
+.badge.info { background: #dfeaf3; color: var(--primary-dark); }
+
+.alert { padding: .7rem .9rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid; }
+.alert.err { background: #fbe1de; border-color: #f0b8b2; color: #7a1f16; }
+.alert.ok { background: #dff3e8; border-color: #b8e2cc; color: #145c39; }
+.alert.warn { background: #fdf0d5; border-color: #f2d9a3; color: #6b4600; }
+.alert.info { background: #dfeaf3; border-color: #b9d3e6; color: #163d55; }
+
+.stat { display: flex; flex-direction: column; gap: .2rem; }
+.stat .v { font-size: 1.6rem; font-weight: 600; }
+.stat .l { color: var(--muted); font-size: .85rem; }
+
+.login { max-width: 380px; margin: 8vh auto; }
+.login h1 { text-align: center; }
+
+.terminal { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem; padding: 2rem; }
+.terminal .clock { font-size: 3.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.terminal .keypad { display: grid; grid-template-columns: repeat(3, 84px); gap: .6rem; }
+.terminal .keypad button { font-size: 1.6rem; height: 64px; }
+.terminal .pin { font-size: 2rem; letter-spacing: .5rem; min-height: 3rem; text-align: center; }
+.terminal .actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: .8rem; width: 100%; max-width: 480px; }
+
+.tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+.tabs a { padding: .5rem .8rem; border-bottom: 2px solid transparent; color: var(--muted); }
+.tabs a.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tabs a:hover { text-decoration: none; color: var(--text); }
+
+.warn-list { margin: .3rem 0 0; padding-left: 1.1rem; font-size: .85rem; color: var(--warn); }
+dialog { border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; max-width: 520px; width: 95%; }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+@media (max-width: 640px) {
+  .topbar { height: auto; padding: .5rem 1rem; flex-wrap: wrap; }
+  .terminal .clock { font-size: 2.5rem; }
+}

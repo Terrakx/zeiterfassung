@@ -123,6 +123,7 @@ CREATE TABLE export_runs (
     sha256        TEXT NOT NULL,
     zeilen        INTEGER NOT NULL,
     erstellt_von  INTEGER REFERENCES employees(id),
+    inhalt        TEXT,                            -- JSON der exportierten Zeilen
     created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 

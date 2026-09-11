@@ -1,0 +1,114 @@
+\documentclass[a4paper,landscape,9pt]{extarticle}
+\usepackage[a4paper,landscape,margin=14mm,top=16mm,bottom=18mm]{geometry}
+\usepackage{fontspec}
+\setmainfont{Latin Modern Sans}
+\usepackage[table]{xcolor}
+\usepackage{longtable,booktabs,array,graphicx,fancyhdr,lastpage,tabularx}
+\usepackage[german]{babel}
+\definecolor{primary}{HTML}{ {{- primary_hex -}} }
+\definecolor{muted}{HTML}{667085}
+\definecolor{neg}{HTML}{C0392B}
+\definecolor{pos}{HTML}{1E8E5A}
+\definecolor{weekend}{HTML}{F2F4F6}
+\definecolor{holiday}{HTML}{FFF3D6}
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{4pt}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\textcolor{muted}{ {{- firmenname -}} \ · Arbeitszeitaufzeichnung nach § 26 AZG}}
+\rhead{\small\textcolor{muted}{ {{- mitarbeiter -}} \ · {{ monat_label }} }}
+\lfoot{\scriptsize\textcolor{muted}{ {{- fusszeile -}} }}
+\cfoot{\scriptsize\textcolor{muted}{Erstellt am {{ erstellt_am }}{% if vorschau %} · VORSCHAU, nicht abgeschlossen{% endif %} · Datenbasis {{ hash }}}}
+\rfoot{\scriptsize\textcolor{muted}{Seite \thepage\ von \pageref{LastPage}}}
+\renewcommand{\headrulewidth}{0.3pt}
+\begin{document}
+
+\noindent
+\begin{minipage}[t]{0.62\textwidth}
+{% if logo %}\includegraphics[height=11mm]{ {{- logo -}} }\\[2mm]{% endif %}
+{\LARGE\bfseries\textcolor{primary}{Zeitaufzeichnung {{ monat_label }}}}\\[1.5mm]
+{\large {{ mitarbeiter }}}\quad\textcolor{muted}{Personalnummer {{ personalnr }}}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.36\textwidth}
+\small
+\begin{tabular}{@{}ll@{}}
+Wochenmodell (Mo–So) & {{ wochenmodell }}\\
+Wochenstunden & {{ wochenstunden }}\\
+Durchrechnungszeitraum & {{ durchrechnung }}\\
+{% if gleitzeit %}Gleitzeitrahmen & {{ gleitzeit }}\\{% endif %}
+Erfassung & {{ erfassung_hinweis }}\\
+\end{tabular}
+\end{minipage}
+
+\vspace{3mm}
+\begin{longtable}{@{}l l r l l r r l r r p{58mm}@{}}
+\toprule
+\textbf{Datum} & \textbf{Tag} & \textbf{Soll} & \textbf{Kommen} & \textbf{Gehen} & \textbf{Pause} & \textbf{Ist} & \textbf{Abwesenheit} & \textbf{Diff} & \textbf{Saldo} & \textbf{Bemerkung}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Datum} & \textbf{Tag} & \textbf{Soll} & \textbf{Kommen} & \textbf{Gehen} & \textbf{Pause} & \textbf{Ist} & \textbf{Abwesenheit} & \textbf{Diff} & \textbf{Saldo} & \textbf{Bemerkung}\\
+\midrule
+\endhead
+\midrule
+\multicolumn{11}{r}{\scriptsize\textcolor{muted}{Fortsetzung nächste Seite}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+{% for d in days -%}
+{% if d.holiday %}\rowcolor{holiday}{% elif d.weekend %}\rowcolor{weekend}{% endif %}
+{{ d.datum }} & {{ d.tag }} & {{ d.soll }} & {{ d.kommen }} & {{ d.gehen }} & {{ d.pause }} & {{ d.ist }} & {{ d.abwesenheit }} & {% if d.diff_neg %}\textcolor{neg}{ {{- d.diff -}} }{% else %}{{ d.diff }}{% endif %} & {{ d.saldo }} & {\scriptsize {{ d.bemerkung }}}\\
+{% endfor %}
+\midrule
+\textbf{Summe} & & \textbf{ {{- soll -}} } & & & {{ pause }} & \textbf{ {{- ist -}} } & {{ abwesenheit }} & \textbf{ {{- diff -}} } & \textbf{ {{- saldo_ende -}} } & \\
+\end{longtable}
+
+\vspace{2mm}
+\noindent\begin{minipage}{\textwidth}
+\noindent
+\begin{minipage}[t]{0.48\textwidth}
+\small
+\textbf{Zusammenfassung}\\[1mm]
+\begin{tabular}{@{}lr@{}}
+Sollzeit & {{ soll }}\\
+Arbeitszeit (Ist) & {{ ist }}\\
+Bezahlte Nichtleistungszeit & {{ abwesenheit }}\\
+Feiertagsausfall & {{ feiertag }}\\
+Differenz im Monat & {{ diff }}\\
+Saldo Monatsbeginn & {{ saldo_start }}\\
+{% if uebertragen %}In Gutstunden übertragen & {{ uebertragen }}\\{% endif %}
+\textbf{Saldo Monatsende} & \textbf{ {{- saldo_ende -}} }\\
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\small
+\textbf{Abwesenheiten und Konten}\\[1mm]
+\begin{tabular}{@{}lr@{}}
+{% for a in abwesenheiten %}{{ a.label }} & {{ a.wert }}\\
+{% endfor %}
+Resturlaub zum Monatsende & {{ resturlaub }} Tage\\
+{% for g in gutstunden %}Gutstunden Topf {{ g.topf }} & {{ g.saldo }}\\
+{% endfor %}
+\end{tabular}
+\end{minipage}
+
+{% if hinweise %}
+\vspace{3mm}
+\noindent\small\textbf{Hinweise}\\
+\begin{itemize}\setlength{\itemsep}{0pt}
+{% for h in hinweise %}\item {{ h }}
+{% endfor %}
+\end{itemize}
+{% endif %}
+
+\vspace{10mm}
+\noindent
+\begin{tabularx}{\textwidth}{@{}X X@{}}
+\rule{70mm}{0.4pt} & \rule{70mm}{0.4pt}\\
+\small {{ unterschrift_1 }}, Datum & \small {{ unterschrift_2 }}, Datum\\
+\end{tabularx}
+\end{minipage}
+
+\end{document}

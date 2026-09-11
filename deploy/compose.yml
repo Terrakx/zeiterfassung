@@ -1,0 +1,55 @@
+# docker compose -f deploy/compose.yml up -d --build
+# Erreichbar unter http://zeiterfassung.local (Portal) und http://timecard.local (Terminal),
+# sofern die Namen im LAN auf diesen Host zeigen (Router-DNS, hosts-Datei oder mDNS/Avahi).
+
+services:
+  timecard:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: timecard:latest
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Vienna
+      RUST_LOG: info
+      # Nur beim allerersten Start relevant (Benutzer "admin"):
+      TIMECARD_ADMIN_PASSWORD: ${TIMECARD_ADMIN_PASSWORD:-admin}
+    volumes:
+      - timecard-data:/data
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - timecard
+
+  # Optional: mDNS-Bekanntmachung der .local-Namen im LAN (Linux-Host mit Avahi).
+  # Windows, macOS und iOS lösen .local per mDNS auf, Android nicht zuverlässig.
+  # Alternative: DNS-Einträge am Router. Zum Aktivieren: docker compose --profile mdns up -d
+  mdns:
+    image: alpine:3
+    profiles: ["mdns"]
+    network_mode: host
+    restart: unless-stopped
+    command: >
+      sh -c "apk add --no-cache avahi avahi-tools dbus >/dev/null &&
+             mkdir -p /run/dbus && dbus-daemon --system --nofork --nopidfile &
+             sleep 2 && avahi-daemon --no-drop-root --daemonize &&
+             sleep 2 &&
+             (avahi-publish -a -R timecard.local $$(hostname -i | cut -d' ' -f1) &
+              avahi-publish -a -R zeiterfassung.local $$(hostname -i | cut -d' ' -f1) &
+              wait)"
+
+volumes:
+  timecard-data:
+  caddy-data:
+  caddy-config:
