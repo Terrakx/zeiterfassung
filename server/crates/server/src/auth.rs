@@ -49,8 +49,8 @@ pub async fn seed_admin(db: &SqlitePool) -> anyhow::Result<()> {
     let pw = std::env::var("TIMECARD_ADMIN_PASSWORD").unwrap_or_else(|_| "admin".into());
     let today = time::fmt_date(time::today_local());
     sqlx::query(
-        "INSERT INTO employees (personalnr, vorname, nachname, username, password_hash, rolle, eintritt, durchrechnung_start)
-         VALUES ('0', 'System', 'Administrator', 'admin', ?, 'admin', ?, ?)",
+        "INSERT INTO employees (personalnr, vorname, nachname, username, password_hash, rolle, eintritt, durchrechnung_start, stempelt)
+         VALUES ('0', 'System', 'Administrator', 'admin', ?, 'admin', ?, ?, 0)",
     )
     .bind(hash_secret(&pw)?)
     .bind(&today)
@@ -206,6 +206,7 @@ pub fn user_json(e: &Employee) -> Value {
         "username": e.username,
         "rolle": e.rolle,
         "hat_pin": e.pin_hash.is_some(),
+        "stempelt": e.stempelt,
     })
 }
 

@@ -100,6 +100,9 @@ fn allowed(state: PresenceState, kind: PunchKind) -> bool {
 
 /// Stempelung mit Zustandsprüfung. Offene Schicht vom Vortag wird berücksichtigt.
 async fn do_punch(db: &SqlitePool, emp: &Employee, kind: PunchKind, quelle: &str, kommentar: Option<String>) -> ApiResult<Value> {
+    if !emp.stempelt {
+        return Err(AppError::Forbidden);
+    }
     let now = time::now_utc();
     let today = time::to_local(now).date();
     let yesterday = today - chrono::Duration::days(1);
@@ -201,7 +204,7 @@ async fn punch_terminal(State(state): State<AppState>, headers: axum::http::Head
             .bind(req.personalnr.trim())
             .fetch_optional(&state.db)
             .await?);
-    let ok = emp.as_ref().and_then(|e| e.pin_hash.as_deref()).map(|h| auth::verify_secret(&req.pin, h)).unwrap_or(false);
+    let ok = emp.as_ref().filter(|e| e.stempelt).and_then(|e| e.pin_hash.as_deref()).map(|h| auth::verify_secret(&req.pin, h)).unwrap_or(false);
     if !ok {
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         if state.limiter.failure(&key) {

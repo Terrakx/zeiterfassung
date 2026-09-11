@@ -120,8 +120,9 @@
       <h1>{emp.vorname} {emp.nachname}</h1>
       <span class="small muted">Nr. {emp.personalnr}{#if modelLabel}{" · " + modelLabel}{/if}</span>
       {#if emp.aktiv}<span class="badge ok">aktiv</span>{:else}<span class="badge">inaktiv</span>{/if}
+      {#if !emp.stempelt}<span class="badge">nur Verwaltung</span>{/if}
     </div>
-    {#if summary}
+    {#if summary && emp.stempelt}
       <div class="row small muted" style="gap:16px">
         <span>Saldo <strong class:pos={summary.saldo > 0} class:neg={summary.saldo < 0}>{hm(summary.saldo, true)}</strong></span>
         <span>Resturlaub <strong style="color:var(--ink)">{days(summary.rest)} Tage</strong></span>
@@ -152,6 +153,7 @@
           <div class="field"><label for="uj">Beginn Urlaubsjahr</label><input id="uj" bind:value={emp.urlaubsjahr_beginn_mm_dd} placeholder="MM-TT" /></div>
           <div class="field"><label for="gt">Gutstundentopf</label><input id="gt" type="number" bind:value={emp.gutstunden_topf} placeholder="automatisch" /><span class="help">Leer = automatisch (Vollzeit 307, Teilzeit 311)</span></div>
         </div>
+        <label class="check" style="margin-top:16px"><input type="checkbox" bind:checked={emp.stempelt} />Nimmt an der Zeiterfassung teil (aus für reine Verwaltungskonten: kein Stempeln, keine Anträge, nicht in Übersichten und Exporten)</label>
         <div class="form-footer">
           <button type="button" class="link danger" onclick={toggleActive}>{emp.aktiv ? 'Deaktivieren' : 'Aktivieren'}</button>
           <div class="row"><button type="button" onclick={discard}>Verwerfen</button><button class="primary">Speichern</button></div>

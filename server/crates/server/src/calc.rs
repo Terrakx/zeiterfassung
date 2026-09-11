@@ -34,7 +34,7 @@ pub fn router() -> Router<AppState> {
 /// Abwesenheitskalender aller aktiven Mitarbeitenden für einen Monat (beantragt und genehmigt).
 async fn calendar(State(state): State<AppState>, AdminUser(_): AdminUser, Query(q): Query<MonthQuery>) -> ApiResult<Json<Value>> {
     let (from, to) = month_range(&q.monat)?;
-    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND personalnr != '0' ORDER BY nachname, vorname")
+    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND stempelt = 1 ORDER BY nachname, vorname")
         .fetch_all(&state.db).await?;
     let hol: Vec<Value> = holidays::for_year(&state.db, from.year()).await?
         .into_iter().filter(|h| h.date >= from && h.date <= to)
@@ -510,7 +510,7 @@ async fn month_admin(State(state): State<AppState>, AdminUser(_): AdminUser, Pat
 
 /// Admin-Dashboard: Anwesenheit und Saldo aller aktiven Mitarbeiter.
 async fn overview(State(state): State<AppState>, AdminUser(_): AdminUser) -> ApiResult<Json<Vec<Value>>> {
-    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 ORDER BY nachname, vorname")
+    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND stempelt = 1 ORDER BY nachname, vorname")
         .fetch_all(&state.db)
         .await?;
     let today = time::today_local();

@@ -96,6 +96,9 @@ fn validate_day(datum: &str, list: &[DayPunch]) -> ApiResult<Vec<DayPunch>> {
 }
 
 async fn create_own(State(state): State<AppState>, CurrentUser(user): CurrentUser, Json(req): Json<CreateReq>) -> ApiResult<Json<Value>> {
+    if !user.stempelt {
+        return Err(AppError::Forbidden);
+    }
     let date = time::parse_date(&req.datum).ok_or_else(|| bad("Datum ungültig"))?;
     if date > time::today_local() {
         return Err(bad("Korrekturen nur für vergangene Tage oder heute"));

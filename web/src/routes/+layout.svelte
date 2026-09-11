@@ -30,7 +30,9 @@
   $effect(() => {
     if (!ready || isTerminal) return;
     if ($user === null && !isLogin) goto('/login');
-    if ($user && isLogin) goto('/');
+    if ($user && isLogin) goto($user.stempelt ? '/' : '/admin');
+    // Reine Verwaltungskonten haben keine eigene Zeiterfassung
+    if ($user && !$user.stempelt && ['/', '/monat', '/abwesenheiten'].includes(page.url.pathname)) goto($user.rolle === 'admin' ? '/admin' : '/konto');
   });
 
   async function logout() {
@@ -44,9 +46,7 @@
     return exact ? p === path : p === path || p.startsWith(path + '/');
   }
   const links = $derived([
-    ['/', 'Stempeln', true],
-    ['/monat', 'Monatsübersicht', false],
-    ['/abwesenheiten', 'Abwesenheiten', false],
+    ...($user?.stempelt ? [['/', 'Stempeln', true], ['/monat', 'Monatsübersicht', false], ['/abwesenheiten', 'Abwesenheiten', false]] : []),
     ['/konto', 'Mein Konto', false],
     ...($user?.rolle === 'admin' ? [['/admin', 'Verwaltung', false]] : [])
   ] as [string, string, boolean][]);
@@ -61,7 +61,7 @@
     <header class="topbar">
       <div class="topbar-inner">
         <div class="topbar-left">
-          <a class="brand" href="/"><BrandMark /><span>{$branding.firmenname}</span></a>
+          <a class="brand" href={$user.stempelt ? '/' : '/admin'}><BrandMark /><span>{$branding.firmenname}</span></a>
           <nav>
             {#each links as [href, label, exact]}<a {href} class:active={active(href, exact)}>{label}</a>{/each}
           </nav>

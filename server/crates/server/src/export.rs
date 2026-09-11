@@ -101,7 +101,7 @@ pub async fn build_rows(db: &SqlitePool, monat: &str, verbuchung: u32) -> ApiRes
         return Err(bad("BMD-Firmennummer fehlt in den Einstellungen"));
     }
     let abm = abrechnungsmonat(from);
-    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE eintritt <= ? AND personalnr != '0' ORDER BY CAST(personalnr AS INTEGER)")
+    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE eintritt <= ? AND stempelt = 1 ORDER BY CAST(personalnr AS INTEGER)")
         .bind(time::fmt_date(to))
         .fetch_all(db)
         .await?;
@@ -269,7 +269,7 @@ async fn create(State(state): State<AppState>, AdminUser(admin): AdminUser, Json
         return Err(AppError::Conflict("Der Datenmonat ist noch nicht vorbei".into()));
     }
     let open: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM employees e WHERE e.aktiv = 1 AND e.personalnr != '0' AND e.eintritt <= ?
+        "SELECT COUNT(*) FROM employees e WHERE e.aktiv = 1 AND e.stempelt = 1 AND e.eintritt <= ?
            AND NOT EXISTS (SELECT 1 FROM month_closures m WHERE m.employee_id = e.id AND m.monat = ?)",
     )
     .bind(time::fmt_date(to)).bind(&q.monat).fetch_one(&state.db).await?;
@@ -411,7 +411,7 @@ pub async fn period_proposal(db: &SqlitePool, emp: &Employee, end: NaiveDate) ->
 
 async fn periods(State(state): State<AppState>, AdminUser(_): AdminUser, Query(q): Query<MonthQuery>) -> ApiResult<Json<Vec<Value>>> {
     let (from, to) = calc::month_range(&q.monat)?;
-    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND personalnr != '0' AND eintritt <= ? ORDER BY nachname, vorname")
+    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND stempelt = 1 AND eintritt <= ? ORDER BY nachname, vorname")
         .bind(time::fmt_date(to)).fetch_all(&state.db).await?;
     let mut out = Vec::new();
     for e in emps {

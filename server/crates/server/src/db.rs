@@ -27,6 +27,7 @@ pub struct Employee {
     pub durchrechnung_monate: i64,
     pub durchrechnung_start: String,
     pub gutstunden_topf: Option<i64>,
+    pub stempelt: bool,
 }
 
 impl Employee {

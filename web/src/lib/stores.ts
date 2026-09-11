@@ -9,6 +9,7 @@ export interface User {
   username: string;
   rolle: 'admin' | 'mitarbeiter';
   hat_pin: boolean;
+  stempelt: boolean;
 }
 
 export interface Branding {

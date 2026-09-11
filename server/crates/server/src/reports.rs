@@ -51,7 +51,7 @@ struct YearQuery {
 
 async fn active_employees_in_year(db: &SqlitePool, jahr: i32) -> ApiResult<Vec<Employee>> {
     let emps = sqlx::query_as::<_, Employee>(
-        "SELECT * FROM employees WHERE personalnr != '0' AND eintritt <= ? AND (austritt IS NULL OR austritt >= ?) ORDER BY nachname, vorname",
+        "SELECT * FROM employees WHERE stempelt = 1 AND eintritt <= ? AND (austritt IS NULL OR austritt >= ?) ORDER BY nachname, vorname",
     )
     .bind(format!("{jahr}-12-31")).bind(format!("{jahr}-01-01"))
     .fetch_all(db).await?;
@@ -108,7 +108,7 @@ struct MonthQuery {
 /// Prüfliste für den Monatsabschluss aller aktiven Mitarbeiter.
 async fn month_status(State(state): State<AppState>, AdminUser(_): AdminUser, Query(q): Query<MonthQuery>) -> ApiResult<Json<Value>> {
     let (from, to) = calc::month_range(&q.monat)?;
-    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND eintritt <= ? ORDER BY nachname, vorname")
+    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND stempelt = 1 AND eintritt <= ? ORDER BY nachname, vorname")
         .bind(time::fmt_date(to))
         .fetch_all(&state.db)
         .await?;
@@ -207,7 +207,7 @@ struct CloseAllReq {
 
 async fn close_all(State(state): State<AppState>, AdminUser(admin): AdminUser, Json(req): Json<CloseAllReq>) -> ApiResult<Json<Value>> {
     let (from, to) = calc::month_range(&req.monat)?;
-    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND eintritt <= ?")
+    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND stempelt = 1 AND eintritt <= ?")
         .bind(time::fmt_date(to)).fetch_all(&state.db).await?;
     let mut done = 0;
     let mut skipped = Vec::new();
@@ -565,7 +565,7 @@ async fn vacation_pdf(
 
 async fn vacation_overview_pdf(State(state): State<AppState>, AdminUser(_): AdminUser, Query(q): Query<StichtagQuery>) -> ApiResult<Response> {
     let as_of = q.stichtag.as_deref().and_then(time::parse_date).unwrap_or_else(time::today_local);
-    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND personalnr != '0' ORDER BY nachname, vorname")
+    let emps = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE aktiv = 1 AND stempelt = 1 ORDER BY nachname, vorname")
         .fetch_all(&state.db).await?;
     let mut rows = Vec::new();
     for e in emps {

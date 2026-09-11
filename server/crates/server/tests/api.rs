@@ -326,3 +326,19 @@ async fn no_target_before_recording_start() {
     let (_, aug, _) = c.call("GET", &format!("/employees/{id}/month?monat=2026-08"), None).await;
     assert_eq!(aug["saldo_ende_min"], 0);
 }
+
+#[tokio::test]
+async fn admin_without_time_tracking() {
+    let mut c = Client::new().await;
+    c.login("admin", "admin-test").await;
+    let (_, me, _) = c.call("GET", "/auth/me", None).await;
+    assert_eq!(me["stempelt"], false);
+    assert_eq!(c.call("POST", "/punch", Some(json!({"art": "kommen"}))).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(c.call("POST", "/absences", Some(json!({"art": "urlaub", "von": "2026-10-05", "bis": "2026-10-05"}))).await.0, StatusCode::FORBIDDEN);
+    let (_, ov, _) = c.call("GET", "/calc/overview", None).await;
+    assert!(ov.as_array().unwrap().is_empty());
+    let (_, st, _) = c.call("GET", "/reports/month-status?monat=2026-08", None).await;
+    assert!(st["rows"].as_array().unwrap().is_empty());
+    // Terminal kennt das Konto nicht
+    assert_eq!(c.call("POST", "/terminal/punch", Some(json!({"personalnr": "0", "pin": "1234", "art": "kommen"}))).await.0, StatusCode::UNAUTHORIZED);
+}

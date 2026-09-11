@@ -12,7 +12,7 @@ Die Verwaltung erreichen Sie nach Anmeldung mit einem Admin-Benutzer über „Ve
    - Urlaub: halbe Tage, Stunden (mit Hinweistext), automatischer Verfall.
    - PDF: Beschriftung der beiden Unterschriftsfelder.
 3. **Feiertage**: gesetzliche Feiertage sind automatisch da. Landesfeiertage oder betriebliche freie Tage ergänzen.
-4. **Mitarbeiter anlegen**: Personalnummer (identisch mit der BMD-Mitarbeiternummer), Name, Benutzername, Eintritt, **Zeiterfassung ab** (ab diesem Datum wird der Saldo gerechnet), Durchrechnung in Monaten, Urlaubsanspruch, Beginn des Urlaubsjahres, Passwort, Terminal-PIN, Wochenmodell in Stunden Mo bis So.
+4. **Mitarbeiter anlegen**: Personalnummer (identisch mit der BMD-Mitarbeiternummer), Name, Benutzername, Eintritt, **Zeiterfassung ab** (ab diesem Datum wird Soll und Saldo gerechnet, davor nichts), Durchrechnung in Monaten, Urlaubsanspruch, Beginn des Urlaubsjahres, Passwort, Terminal-PIN, Wochenmodell in Stunden Mo bis So. Das Häkchen **Nimmt an der Zeiterfassung teil** ist standardmäßig gesetzt; für reine Verwaltungskonten (wie den Systemadministrator) aus: keine Stempelung, keine Anträge, nicht in Übersichten, Abschluss und Export.
 5. **Altbestände übernehmen** je Mitarbeiter:
    - Gleitzeitsaldo: Tab „Gutstunden“, Buchung Art „Gleitzeitsaldo“, Topf 0, Minuten, Datum = Tag vor „Zeiterfassung ab“.
    - Gutstunden: Buchung Art „Übertrag“ auf den Topf.

@@ -56,6 +56,8 @@ struct EmployeeReq {
     durchrechnung_monate: Option<i64>,
     durchrechnung_start: Option<String>,
     gutstunden_topf: Option<i64>,
+    /// Nimmt an der Zeiterfassung teil (Standard ja). Reine Verwaltungskonten: nein.
+    stempelt: Option<bool>,
     // nur bei Anlage
     passwort: Option<String>,
     pin: Option<String>,
@@ -121,8 +123,8 @@ async fn create(
     let mut tx = state.db.begin().await?;
     let res = sqlx::query(
         "INSERT INTO employees (personalnr, vorname, nachname, username, password_hash, pin_hash, rolle, eintritt, austritt,
-            urlaubsanspruch_tage, urlaubsjahr_beginn_mm_dd, durchrechnung_monate, durchrechnung_start, gutstunden_topf)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            urlaubsanspruch_tage, urlaubsjahr_beginn_mm_dd, durchrechnung_monate, durchrechnung_start, gutstunden_topf, stempelt)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
     )
     .bind(req.personalnr.trim())
     .bind(req.vorname.trim())
@@ -138,6 +140,7 @@ async fn create(
     .bind(req.durchrechnung_monate.unwrap_or(3))
     .bind(&durchrechnung_start)
     .bind(req.gutstunden_topf)
+    .bind(req.stempelt.unwrap_or(true))
     .execute(&mut *tx)
     .await
     .map_err(|e| match e {
@@ -191,7 +194,7 @@ async fn update(
     }
     sqlx::query(
         "UPDATE employees SET personalnr=?, vorname=?, nachname=?, username=?, rolle=?, eintritt=?, austritt=?,
-            urlaubsanspruch_tage=?, urlaubsjahr_beginn_mm_dd=?, durchrechnung_monate=?, durchrechnung_start=?, gutstunden_topf=?,
+            urlaubsanspruch_tage=?, urlaubsjahr_beginn_mm_dd=?, durchrechnung_monate=?, durchrechnung_start=?, gutstunden_topf=?, stempelt=?,
             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
          WHERE id = ?",
     )
@@ -207,6 +210,7 @@ async fn update(
     .bind(req.durchrechnung_monate.unwrap_or(old.durchrechnung_monate))
     .bind(req.durchrechnung_start.clone().unwrap_or(old.durchrechnung_start.clone()))
     .bind(req.gutstunden_topf)
+    .bind(req.stempelt.unwrap_or(old.stempelt))
     .bind(id)
     .execute(&state.db)
     .await

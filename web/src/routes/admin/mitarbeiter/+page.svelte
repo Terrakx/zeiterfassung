@@ -11,7 +11,7 @@
   let f = $state({
     personalnr: '', vorname: '', nachname: '', username: '', rolle: 'mitarbeiter', eintritt: todayIso(),
     urlaubsanspruch_tage: 25, urlaubsjahr_beginn_mm_dd: '01-01', durchrechnung_monate: 3, durchrechnung_start: todayIso(),
-    passwort: '', pin: '', wochenmodell: [8, 8, 8, 8, 8, 0, 0]
+    passwort: '', pin: '', wochenmodell: [8, 8, 8, 8, 8, 0, 0], stempelt: true
   });
 
   async function load() {
@@ -52,7 +52,7 @@
           <td class="right muted">{e.personalnr}</td>
           <td><a href={`/admin/mitarbeiter/${e.id}`} style="font-weight:500">{e.vorname} {e.nachname}</a></td>
           <td style="color:var(--ink-2)">{e.username}</td>
-          <td>{e.rolle === 'admin' ? 'Admin' : 'Mitarbeiter'}</td>
+          <td>{e.rolle === 'admin' ? 'Admin' : 'Mitarbeiter'}{#if !e.stempelt} <span class="badge">nur Verwaltung</span>{/if}</td>
           <td>{dateDe(e.eintritt)}</td>
           <td class="muted">{e.austritt ? dateDe(e.austritt) : '–'}</td>
           <td class="right">{e.urlaubsanspruch_tage}</td>
@@ -84,6 +84,7 @@
       <div class="field"><label for="pw">Passwort</label><input id="pw" type="text" bind:value={f.passwort} autocomplete="off" /><span class="help">Leer lassen, wenn kein Portal-Login gewünscht ist.</span></div>
       <div class="field"><label for="pi">Terminal-PIN (4 bis 8 Ziffern)</label><input id="pi" type="text" bind:value={f.pin} inputmode="numeric" autocomplete="off" /></div>
     </div>
+    <label class="check" style="margin-top:12px"><input type="checkbox" bind:checked={f.stempelt} />Nimmt an der Zeiterfassung teil (aus für reine Verwaltungskonten)</label>
     <div class="field" style="margin-top:16px">
       <span style="display:block;margin-bottom:6px;font-weight:500;color:var(--ink-2);font-size:13px">Wochenmodell in Stunden</span>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">

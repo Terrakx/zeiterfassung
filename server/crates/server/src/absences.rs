@@ -186,6 +186,9 @@ async fn list_own(State(state): State<AppState>, CurrentUser(user): CurrentUser,
 }
 
 async fn request_own(State(state): State<AppState>, CurrentUser(user): CurrentUser, Json(req): Json<AbsenceReq>) -> ApiResult<Json<Value>> {
+    if !user.stempelt {
+        return Err(AppError::Forbidden);
+    }
     let v = validate(&state.db, &user, &req, false, None).await?;
     if v.kind.consumes_vacation() {
         let acct = vacation_account(&state.db, &user, v.to).await?;
