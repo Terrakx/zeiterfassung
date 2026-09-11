@@ -1,0 +1,7 @@
+/server/target
+/web/node_modules
+/web/build
+/web/.svelte-kit
+/data
+*.sqlite*
+.env
