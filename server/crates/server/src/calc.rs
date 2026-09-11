@@ -127,7 +127,9 @@ impl Context {
 
     fn target(&self, date: NaiveDate) -> (i32, bool) {
         let d = time::fmt_date(date);
-        if d < self.emp.eintritt || self.emp.austritt.as_deref().map(|a| d.as_str() > a).unwrap_or(false) {
+        // Vor Eintritt, vor Erfassungsbeginn („Zeiterfassung ab“) und nach Austritt gibt es kein Soll.
+        let start = self.emp.durchrechnung_start.as_str().max(self.emp.eintritt.as_str());
+        if d.as_str() < start || self.emp.austritt.as_deref().map(|a| d.as_str() > a).unwrap_or(false) {
             return (0, false);
         }
         match db::schedule_at(&self.schedules, date) {

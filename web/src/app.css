@@ -137,6 +137,8 @@ button.link { border: 0; background: transparent; color: var(--primary); padding
 button.link.danger { color: var(--err); }
 button:disabled, .btn:disabled { opacity: .5; cursor: not-allowed; }
 button.small, .btn.small { height: auto; font-size: 12px; font-weight: 400; padding: 3px 8px; border-radius: 5px; color: var(--ink-2); }
+button.small.primary, .btn.small.primary { color: #fff; font-weight: 500; }
+button.small.danger { color: var(--err); }
 button.action, .btn.action { height: 52px; font-size: 15px; width: 100%; }
 button.action.primary { border-color: var(--primary); }
 button.ghost { border: 0; background: transparent; color: var(--ink-2); }

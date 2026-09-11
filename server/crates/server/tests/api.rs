@@ -304,3 +304,25 @@ async fn day_correction_replaces_all_punches() {
     assert_eq!(all.as_array().unwrap().len(), 5);
     assert!(all.as_array().unwrap().iter().any(|p| p["storniert_at"].is_string()));
 }
+
+#[tokio::test]
+async fn no_target_before_recording_start() {
+    let mut c = Client::new().await;
+    c.login("admin", "admin-test").await;
+    let (st, r, _) = c.call("POST", "/employees", Some(json!({
+        "personalnr": "9", "vorname": "Neu", "nachname": "Start", "username": "nstart",
+        "eintritt": "2024-01-01", "durchrechnung_start": "2026-09-01", "wochenmodell": [8,8,8,8,8,0,0]
+    }))).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    let id = r["employee"]["id"].as_i64().unwrap();
+    let (_, y, _) = c.call("GET", "/reports/year?jahr=2026", None).await;
+    let me = y.as_array().unwrap().iter().find(|e| e["employee"]["id"] == id).unwrap();
+    let monate = me["monate"].as_array().unwrap();
+    for m in &monate[..8] {
+        assert_eq!(m["soll_min"], 0, "{m}");
+        assert_eq!(m["diff_min"], 0, "{m}");
+    }
+    assert!(monate[8]["soll_min"].as_i64().unwrap() > 0);
+    let (_, aug, _) = c.call("GET", &format!("/employees/{id}/month?monat=2026-08"), None).await;
+    assert_eq!(aug["saldo_ende_min"], 0);
+}

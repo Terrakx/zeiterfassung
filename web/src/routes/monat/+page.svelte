@@ -29,6 +29,7 @@
   async function withdraw(id: number) {
     try { await api.post(`/punch-requests/${id}/withdraw`); await load(); } catch (e) { error = errMsg(e); }
   }
+  const pendingDays = $derived(new Set(requests.filter((r) => r.status === 'beantragt').map((r) => r.datum as string)));
   onMount(() => {
     const mq = window.matchMedia('(max-width: 640px)');
     const apply = () => { narrow = mq.matches; view = mq.matches ? 'cards' : 'table'; };
@@ -68,7 +69,7 @@
     <button class:active={view === 'table'} onclick={() => (view = 'table')}>Tabelle</button>
   </div>
 {/if}
-{#if month}<MonthTable {month} {view} onrequest={(d) => dialog.open(d)} />{/if}
+{#if month}<MonthTable {month} {view} pending={pendingDays} onrequest={(d) => dialog.open(d)} />{/if}
 <CorrectionDialog bind:this={dialog} onsaved={() => { msg = 'Korrekturantrag gesendet.'; load(); }} />
 
 {#if requests.length}

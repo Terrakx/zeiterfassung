@@ -9,13 +9,16 @@
     onrequest?: (day: any) => void;
     /** Ansicht: Tabelle oder Karten (mobil) */
     view?: 'table' | 'cards';
+    /** Tage (YYYY-MM-DD) mit offenem Korrekturantrag */
+    pending?: Set<string>;
   }
-  let { month, admin = false, onstorno, onrequest, view = 'table' }: Props = $props();
+  let { month, admin = false, onstorno, onrequest, view = 'table', pending = new Set() }: Props = $props();
   const today = todayIso();
   const isWeekend = (d: any) => d.weekday === 'Sa' || d.weekday === 'So';
   const dayNum = (iso: string) => iso.slice(8, 10) + '.';
   const monthName = $derived(new Date(month.monat + '-01').toLocaleDateString('de-AT', { month: 'long' }));
-  const canRequest = (d: any) => onrequest && !d.future && !month.geschlossen && (d.is_working_day || d.punches.length);
+  const canRequest = (d: any) => onrequest && !d.future && !month.geschlossen && (d.is_working_day || d.punches.length) && !pending.has(d.date);
+  const isPending = (d: any) => pending.has(d.date);
   const hintText = (d: any) => d.warnings.map(warningText).join('; ');
   const showDiff = (d: any) => !d.future && (d.target_min || d.worked_min || d.diff_min);
 </script>
@@ -56,7 +59,7 @@
           {#if d.warnings.length}<div class="hint">⚠ {hintText(d)}</div>{/if}
           <div class="row between">
             <span>{#each d.absences as a}<span class="badge info">{a.label}{#if a.einheit !== 'tag'} {hm(a.minutes)}{/if}</span> {/each}</span>
-            {#if canRequest(d)}<button class="link small" style="font-size:12px" onclick={() => onrequest?.(d)}>Korrektur beantragen</button>{/if}
+            {#if isPending(d)}<span class="badge warn">Korrektur beantragt</span>{:else if canRequest(d)}<button class="link small" style="font-size:12px" onclick={() => onrequest?.(d)}>Korrektur beantragen</button>{/if}
           </div>
         </div>
       {/if}
@@ -94,7 +97,7 @@
                 </div>
               {/if}
             </td>
-            <td class="right">{#if canRequest(d)}<button class="small" onclick={() => onrequest?.(d)}>Korrektur beantragen</button>{/if}</td>
+            <td class="right">{#if isPending(d)}<span class="badge warn">Korrektur beantragt</span>{:else if canRequest(d)}<button class="small" onclick={() => onrequest?.(d)}>Korrektur beantragen</button>{/if}</td>
           </tr>
         {/each}
       </tbody>
