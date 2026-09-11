@@ -28,8 +28,14 @@ Voraussetzungen: Rust ≥ 1.85, Node ≥ 20, eine LaTeX-Installation mit `latexm
 (TeX Live oder MiKTeX) für die PDF-Erzeugung.
 
 ```bash
+# Bash / Git Bash
 cd web && npm install && npm run build      # Frontend nach web/build
 cd ../server && cargo run                   # API + Frontend auf http://127.0.0.1:8080
+```
+
+```powershell
+# Windows PowerShell (kennt kein &&)
+cd web; npm install; npm run build; cd ../server; cargo run
 ```
 
 Beim ersten Start wird der Benutzer `admin` mit dem Passwort aus `TIMECARD_ADMIN_PASSWORD`
