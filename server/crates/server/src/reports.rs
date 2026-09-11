@@ -193,8 +193,8 @@ async fn close_month(state: &AppState, admin: &Employee, emp: &Employee, monat: 
     std::fs::write(&file, &pdf).map_err(|e| anyhow::anyhow!(e))?;
     let hash = hex::encode(Sha256::digest(&pdf));
     let rel = file.strip_prefix(&*state.data_dir).unwrap_or(&file).to_string_lossy().replace('\\', "/");
-    sqlx::query("INSERT INTO month_closures (employee_id, monat, geschlossen_at, geschlossen_von, pdf_pfad, pdf_sha256) VALUES (?,?,?,?,?,?)")
-        .bind(emp.id).bind(monat).bind(time::fmt_utc(time::now_utc())).bind(admin.id).bind(&rel).bind(&hash)
+    sqlx::query("INSERT INTO month_closures (employee_id, monat, geschlossen_at, geschlossen_von, pdf_pfad, pdf_sha256, saldo_ende_min) VALUES (?,?,?,?,?,?,?)")
+        .bind(emp.id).bind(monat).bind(time::fmt_utc(time::now_utc())).bind(admin.id).bind(&rel).bind(&hash).bind(mv.saldo_ende_min)
         .execute(&state.db).await?;
     db::audit(&state.db, Some(admin.id), "monat_abgeschlossen", Some(format!("employee:{}", emp.id)), None, Some(json!({"monat": monat, "pdf": rel, "sha256": hash}))).await?;
     Ok(json!({"ok": true, "pdf": rel, "sha256": hash}))
@@ -240,6 +240,9 @@ async fn reopen(State(state): State<AppState>, AdminUser(admin): AdminUser, Json
     if r.rows_affected() == 0 {
         return Err(AppError::NotFound);
     }
+    // Spätere Zwischenstände könnten sich durch die Korrektur ändern: verwerfen, Sperre bleibt.
+    sqlx::query("UPDATE month_closures SET saldo_ende_min = NULL WHERE employee_id = ? AND monat > ?")
+        .bind(req.employee_id).bind(&req.monat).execute(&state.db).await?;
     db::audit(&state.db, Some(admin.id), "monatsabschluss_aufgehoben", Some(format!("employee:{}", req.employee_id)), None, Some(json!({"monat": req.monat, "grund": req.grund}))).await?;
     Ok(Json(json!({"ok": true})))
 }

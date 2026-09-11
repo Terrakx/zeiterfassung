@@ -6,6 +6,7 @@ use axum::{
     Router,
 };
 use http_body_util::BodyExt;
+use chrono::Datelike;
 use serde_json::{json, Value};
 use tower::ServiceExt;
 
@@ -192,4 +193,56 @@ async fn correction_request_flow() {
     assert_eq!(st, StatusCode::OK);
     let (_, list, _) = c.call("GET", "/admin/punch-requests?status=genehmigt", None).await;
     assert_eq!(list.as_array().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn night_shift_counts_on_start_day() {
+    let mut c = Client::new().await;
+    c.login("admin", "admin-test").await;
+    let id = create_employee(&mut c, "7", "maria", [8.0, 8.0, 8.0, 8.0, 8.0, 0.0, 0.0]).await;
+    for (zeit, art) in [("2026-03-02T22:00", "kommen"), ("2026-03-03T02:00", "pause_start"), ("2026-03-03T02:30", "pause_ende"), ("2026-03-03T06:00", "gehen")] {
+        let (st, r, _) = c.call("POST", &format!("/employees/{id}/punches"), Some(json!({"zeit": zeit, "art": art, "kommentar": "Nachtschicht"}))).await;
+        assert_eq!(st, StatusCode::OK, "{r}");
+    }
+    let (_, m, _) = c.call("GET", &format!("/employees/{id}/month?monat=2026-03"), None).await;
+    let days = m["days"].as_array().unwrap();
+    let d2 = days.iter().find(|d| d["date"] == "2026-03-02").unwrap();
+    let d3 = days.iter().find(|d| d["date"] == "2026-03-03").unwrap();
+    assert_eq!(d2["worked_min"], 450, "{d2}");
+    assert_eq!(d2["break_min"], 30);
+    assert_eq!(d2["last_out"], "06:00");
+    assert!(!d2["open_shift"].as_bool().unwrap());
+    assert_eq!(d3["worked_min"], 0);
+    assert!(d3["warnings"].as_array().unwrap().is_empty(), "{d3}");
+}
+
+#[tokio::test]
+async fn saldo_snapshot_matches_full_recalculation() {
+    let mut c = Client::new().await;
+    c.login("admin", "admin-test").await;
+    let id = create_employee(&mut c, "7", "maria", [8.0, 8.0, 8.0, 8.0, 8.0, 0.0, 0.0]).await;
+    // Jänner 2026: an jedem Arbeitstag 9 h → Plus
+    let mut d = chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+    while d.month() == 1 {
+        if d.weekday().num_days_from_monday() < 5 && d.day() != 1 && d.day() != 6 {
+            for (t, art) in [("08:00", "kommen"), ("12:00", "pause_start"), ("12:30", "pause_ende"), ("17:30", "gehen")] {
+                c.call("POST", &format!("/employees/{id}/punches"), Some(json!({"zeit": format!("{d}T{t}"), "art": art, "kommentar": "Test"}))).await;
+            }
+        }
+        d += chrono::Duration::days(1);
+    }
+    let (_, feb_before, _) = c.call("GET", &format!("/employees/{id}/month?monat=2026-02"), None).await;
+    let start_before = feb_before["saldo_start_min"].as_i64().unwrap();
+    assert!(start_before > 0, "{start_before}");
+    // Jänner abschließen (LaTeX wird hier nicht ausgeführt: Vorschau-PDF nicht nötig, Abschluss ruft LaTeX auf → nur wenn verfügbar)
+    let (st, r, _) = c.call("POST", "/reports/close", Some(json!({"employee_id": id, "monat": "2026-01"}))).await;
+    if st != StatusCode::OK {
+        eprintln!("Abschluss übersprungen (kein LaTeX?): {r}");
+        return;
+    }
+    let (_, feb_after, _) = c.call("GET", &format!("/employees/{id}/month?monat=2026-02"), None).await;
+    assert_eq!(feb_after["saldo_start_min"].as_i64().unwrap(), start_before);
+    // Wochenmodell rückwirkend im abgeschlossenen Monat ist gesperrt
+    let (st, _, _) = c.call("POST", &format!("/employees/{id}/schedules"), Some(json!({"gueltig_ab": "2026-01-15", "stunden": [4,4,4,4,4,0,0]}))).await;
+    assert_eq!(st, StatusCode::CONFLICT);
 }

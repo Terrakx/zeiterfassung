@@ -279,7 +279,8 @@ async fn add_schedule(
     Json(req): Json<ScheduleReq>,
 ) -> ApiResult<Json<Vec<WorkSchedule>>> {
     db::get_employee(&state.db, id).await?;
-    time::parse_date(&req.gueltig_ab).ok_or_else(|| bad("Datum ungültig"))?;
+    let ab = time::parse_date(&req.gueltig_ab).ok_or_else(|| bad("Datum ungültig"))?;
+    crate::calc::ensure_month_open(&state.db, id, ab).await?;
     if req.stunden.iter().any(|h| !(0.0..=24.0).contains(h)) {
         return Err(bad("Stunden je Tag müssen zwischen 0 und 24 liegen"));
     }
@@ -304,6 +305,10 @@ async fn delete_schedule(State(state): State<AppState>, AdminUser(admin): AdminU
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM work_schedules WHERE employee_id = ?").bind(id).fetch_one(&state.db).await?;
     if count <= 1 {
         return Err(bad("Das letzte Wochenmodell kann nicht gelöscht werden"));
+    }
+    let ab: Option<String> = sqlx::query_scalar("SELECT gueltig_ab FROM work_schedules WHERE id = ? AND employee_id = ?").bind(sid).bind(id).fetch_optional(&state.db).await?;
+    if let Some(d) = ab.as_deref().and_then(time::parse_date) {
+        crate::calc::ensure_month_open(&state.db, id, d).await?;
     }
     sqlx::query("DELETE FROM work_schedules WHERE id = ? AND employee_id = ?").bind(sid).bind(id).execute(&state.db).await?;
     db::audit(&state.db, Some(admin.id), "wochenmodell_geloescht", Some(format!("employee:{id}")), Some(json!({"schedule_id": sid})), None).await?;

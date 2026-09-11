@@ -7,6 +7,8 @@
 3. Es erscheinen nur die Tasten, die gerade möglich sind: **Kommen**, danach **Pause** oder **Gehen**, in der Pause **Pause Ende** oder **Gehen**.
 4. Die Bestätigung zeigt die gebuchte Zeit, die heutige Arbeitszeit und den Gleitzeitsaldo bis gestern. Nach wenigen Sekunden ist das Terminal wieder frei.
 
+Nachtschichten: Was nach Mitternacht bis zum „Gehen“ gestempelt wird, zählt zum Tag, an dem die Schicht begonnen hat.
+
 Die Uhrzeit kommt vom Server, nicht vom Terminal. Ohne Eingabe springt das Terminal nach 20 Sekunden zurück. Nach fünf falschen PIN-Eingaben ist die Personalnummer 15 Minuten gesperrt.
 
 ## Stempeln im Portal

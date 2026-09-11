@@ -57,6 +57,9 @@ Tests: `cd server && cargo test` (Unit-Tests des Rechenkerns und Integrationstes
 TIMECARD_ADMIN_PASSWORD='sicheres-passwort' docker compose -f deploy/compose.yml up -d --build
 ```
 
+Terminal am Tablet: die Seite `/terminal` im Browser öffnen und „Zum Startbildschirm hinzufügen“
+wählen; sie startet dann als Vollbild-App (Web-App-Manifest).
+
 Namensauflösung: `zeiterfassung.local` und `timecard.local` müssen im LAN auf den Host zeigen.
 Am einfachsten über DNS-Einträge am Router; Alternativen sind `hosts`-Dateien oder mDNS
 (`docker compose --profile mdns up -d`, nur Linux-Host; Android löst `.local` nicht zuverlässig auf).
@@ -70,6 +73,8 @@ Die Serveruhr bestimmt die Stempelzeit. Ohne NTP-Zugang die Hardware-Uhr regelm�
 
 - Aufzeichnung minutengenau: Kommen, Gehen, Pause Beginn/Ende (§ 26 AZG). Korrekturen nur durch
   die Verwaltung mit Begründung; Stempelungen werden nie gelöscht, nur storniert (Audit-Log).
+- Nachtschichten: Stempelungen gehören zum Tag, an dem die Schicht mit „Kommen“ begann, auch nach
+  Mitternacht. Liegen mehr als 16 Stunden zwischen zwei Stempelungen, gilt die Schicht als offen.
 - Pause: über 6 h Arbeit mindestens 30 min. Fehlende Pause wird gemeldet; automatischer Abzug nur,
   wenn im Wochenmodell aktiviert (zulässig bei betrieblich festgelegter Pausenlage).
 - Warnungen (kein Blockieren): über 10 h, über 12 h am Tag, über 50 h und 60 h in der Woche,
@@ -77,7 +82,10 @@ Die Serveruhr bestimmt die Stempelzeit. Ohne NTP-Zugang die Hardware-Uhr regelm�
   offene oder ungültige Stempelfolge.
 - Feiertag: Sollzeit gilt als bezahlt (§ 9 ARG); Arbeit am Feiertag zählt zusätzlich.
 - Gleitzeitsaldo = Summe der Tagesdifferenzen ab „Zeiterfassung ab“, abzüglich Übertragungen in
-  Gutstundentöpfe, zuzüglich manueller Saldo-Buchungen (Anfangswert bei Systemstart).
+  Gutstundentöpfe, zuzüglich manueller Saldo-Buchungen (Anfangswert bei Systemstart). Beim
+  Monatsabschluss wird der Saldo festgehalten; spätere Berechnungen setzen dort auf. Rückwirkende
+  Änderungen in abgeschlossenen Monaten (Stempelungen, Abwesenheiten, Wochenmodelle, Buchungen)
+  sind gesperrt, bis der Abschluss aufgehoben wird.
 - Durchrechnung: Am Periodenende schlägt das System die Übertragung des Plus-Saldos (über der
   Übertragsgrenze) in den Gutstundentopf vor (Vollzeit 307, Teilzeit 311, Feiertag 308).
   Zeitausgleich verbraucht den Standard-Topf.

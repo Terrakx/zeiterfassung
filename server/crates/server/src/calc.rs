@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::SqlitePool;
 use timecard_domain::{
-    compute_day, day::AbsenceMinutes, AbsenceKind, AbsenceUnit, DayInput, DayResult, PauseRule, Punch,
+    compute_day, day::AbsenceMinutes, AbsenceKind, AbsenceUnit, DayInput, DayResult, PauseRule, Punch, PunchKind,
 };
 
 use crate::{
@@ -90,9 +90,14 @@ pub struct Context {
     pub schedules: Vec<WorkSchedule>,
     pub holidays: HashMap<NaiveDate, String>,
     pub punches: Vec<punches::PunchRow>,
+    /// Lokale Stempelung und zugeordneter Schichttag, parallel zu `punches` (nur gültige Zeilen).
+    shifts: Vec<(usize, Punch, NaiveDate)>,
     pub absences: Vec<AbsenceRow>,
     pub pause_rule: PauseRule,
 }
+
+/// Maximaler Abstand zwischen zwei Stempelungen einer Schicht (Stunden).
+const SHIFT_MAX_GAP_H: i64 = 16;
 
 impl Context {
     pub async fn load(db: &SqlitePool, emp: &Employee, from: NaiveDate, to: NaiveDate) -> ApiResult<Self> {
@@ -103,8 +108,13 @@ impl Context {
                 hol.insert(h.date, h.name);
             }
         }
-        // Eine Woche früher laden: Ruhezeit zum Vortag und Wochensummen am Monatsanfang.
-        let punches = punches::punches_between(db, emp.id, from - Duration::days(7), to).await?;
+        // Eine Woche früher laden (Ruhezeit, Wochensummen) und einen Tag später (Nachtschicht,
+        // die am letzten Tag beginnt und nach Mitternacht endet).
+        let punches = punches::punches_between(db, emp.id, from - Duration::days(7), to + Duration::days(1)).await?;
+        let local: Vec<(usize, Punch)> = punches.iter().enumerate().filter_map(|(i, r)| r.local().map(|p| (i, p))).collect();
+        let only: Vec<Punch> = local.iter().map(|(_, p)| p.clone()).collect();
+        let dates = timecard_domain::assign_shift_dates(&only, SHIFT_MAX_GAP_H);
+        let shifts = local.into_iter().zip(dates).map(|((i, p), d)| (i, p, d)).collect();
         let absences = absences::approved_between(db, emp.id, from, to).await?;
         let s = settings::load(db).await?;
         let pause_rule = PauseRule {
@@ -112,7 +122,7 @@ impl Context {
             required_min: s.pause_dauer_min as i32,
             auto_deduct: false,
         };
-        Ok(Self { emp: emp.clone(), schedules, holidays: hol, punches, absences, pause_rule })
+        Ok(Self { emp: emp.clone(), schedules, holidays: hol, punches, shifts, absences, pause_rule })
     }
 
     fn target(&self, date: NaiveDate) -> (i32, bool) {
@@ -141,19 +151,18 @@ impl Context {
         let is_holiday = self.holidays.contains_key(&date);
         let mut day_punches: Vec<Punch> = Vec::new();
         let mut punch_json = Vec::new();
-        let mut prev_end = None;
-        for r in &self.punches {
-            if let Some(p) = r.local() {
-                let pd = p.at.date();
-                if pd == date {
-                    punch_json.push(json!({
-                        "id": r.id, "zeit": p.at.format("%H:%M").to_string(), "art": r.art,
-                        "quelle": r.quelle, "kommentar": r.kommentar,
-                    }));
-                    day_punches.push(p);
-                } else if pd == date - Duration::days(1) && r.art == "gehen" {
-                    prev_end = Some(p.at);
-                }
+        let mut prev_end: Option<chrono::NaiveDateTime> = None;
+        for (i, p, shift_date) in &self.shifts {
+            let r = &self.punches[*i];
+            if *shift_date == date {
+                let next_day = p.at.date() != date;
+                punch_json.push(json!({
+                    "id": r.id, "zeit": format!("{}{}", p.at.format("%H:%M"), if next_day { "+1" } else { "" }), "art": r.art,
+                    "quelle": r.quelle, "kommentar": r.kommentar,
+                }));
+                day_punches.push(p.clone());
+            } else if *shift_date < date && p.kind == PunchKind::ClockOut {
+                prev_end = Some(prev_end.map_or(p.at, |e| e.max(p.at)));
             }
         }
         let mut abs_views = Vec::new();
@@ -267,23 +276,40 @@ pub fn saldo_start(emp: &Employee) -> ApiResult<NaiveDate> {
 /// Gleitzeitsaldo am Ende von `date`: Σ Differenzen seit Erfassungsbeginn, abzüglich der in
 /// Gutstundentöpfe übertragenen Minuten, zuzüglich manueller Saldo-Buchungen (Anfangswert, Korrektur).
 pub async fn saldo_until(db: &SqlitePool, emp: &Employee, date: NaiveDate) -> ApiResult<i32> {
-    let start = saldo_start(emp)?;
-    let sum: i32 = if date < start {
+    // Jüngster abgeschlossener Monat mit festgehaltenem Saldo, dessen Ende vor `date` liegt.
+    let snap: Option<(String, i64)> = sqlx::query_as(
+        "SELECT monat, saldo_ende_min FROM month_closures
+         WHERE employee_id = ? AND saldo_ende_min IS NOT NULL AND monat < ?
+         ORDER BY monat DESC LIMIT 1",
+    )
+    .bind(emp.id)
+    .bind(date.format("%Y-%m").to_string())
+    .fetch_optional(db)
+    .await?;
+    let (base, from, after) = match snap {
+        Some((monat, saldo)) => {
+            let (_, end) = month_range(&monat)?;
+            (saldo as i32, end + Duration::days(1), Some(time::fmt_date(end)))
+        }
+        None => (0, saldo_start(emp)?, None),
+    };
+    let sum: i32 = if date < from {
         0
     } else {
-        let ctx = Context::load(db, emp, start, date).await?;
-        ctx.days(start, date).iter().map(|d| d.result.diff_min).sum()
+        let ctx = Context::load(db, emp, from, date).await?;
+        ctx.days(from, date).iter().map(|d| d.result.diff_min).sum()
     };
     let (transferred, manual): (i64, i64) = sqlx::query_as(
         "SELECT COALESCE(SUM(CASE WHEN art = 'periodenabschluss' THEN minuten ELSE 0 END),0),
                 COALESCE(SUM(CASE WHEN art = 'saldo' THEN minuten ELSE 0 END),0)
-         FROM credit_hours_entries WHERE employee_id = ? AND datum <= ?",
+         FROM credit_hours_entries WHERE employee_id = ? AND datum <= ? AND datum > ?",
     )
     .bind(emp.id)
     .bind(time::fmt_date(date))
+    .bind(after.unwrap_or_else(|| "0000-00-00".into()))
     .fetch_one(db)
     .await?;
-    Ok(sum - transferred as i32 + manual as i32)
+    Ok(base + sum - transferred as i32 + manual as i32)
 }
 
 pub async fn ensure_month_open(db: &SqlitePool, employee_id: i64, date: NaiveDate) -> ApiResult<()> {

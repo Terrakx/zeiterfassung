@@ -77,9 +77,68 @@ pub struct Punch {
     pub kind: PunchKind,
 }
 
+/// Ordnet Stempelungen einem Schichttag zu: „Kommen“ eröffnet die Schicht an seinem Datum,
+/// die folgenden Stempelungen gehören bis zum „Gehen“ zu diesem Tag, auch nach Mitternacht.
+/// Liegen mehr als `max_gap_hours` zwischen zwei Stempelungen, gilt die Schicht als abgebrochen
+/// (vergessenes Gehen) und die nächste Stempelung zählt zu ihrem eigenen Datum.
+pub fn assign_shift_dates(punches: &[Punch], max_gap_hours: i64) -> Vec<NaiveDate> {
+    let mut out = Vec::with_capacity(punches.len());
+    let mut current: Option<(NaiveDate, NaiveDateTime)> = None;
+    for p in punches {
+        let date = match (p.kind, current) {
+            (PunchKind::ClockIn, _) => {
+                current = Some((p.at.date(), p.at));
+                p.at.date()
+            }
+            (_, Some((d, last))) if (p.at - last).num_hours() < max_gap_hours => {
+                current = Some((d, p.at));
+                d
+            }
+            _ => {
+                current = None;
+                p.at.date()
+            }
+        };
+        if p.kind == PunchKind::ClockOut {
+            current = None;
+        }
+        out.push(date);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn at(d: u32, h: u32, m: u32) -> NaiveDateTime {
+        NaiveDate::from_ymd_opt(2026, 9, d).unwrap().and_hms_opt(h, m, 0).unwrap()
+    }
+
+    #[test]
+    fn night_shift_belongs_to_start_day() {
+        let punches = [
+            Punch { at: at(1, 22, 0), kind: PunchKind::ClockIn },
+            Punch { at: at(2, 2, 0), kind: PunchKind::BreakStart },
+            Punch { at: at(2, 2, 30), kind: PunchKind::BreakEnd },
+            Punch { at: at(2, 6, 0), kind: PunchKind::ClockOut },
+            Punch { at: at(2, 22, 0), kind: PunchKind::ClockIn },
+            Punch { at: at(3, 6, 0), kind: PunchKind::ClockOut },
+        ];
+        let d = assign_shift_dates(&punches, 16);
+        let day = |n| NaiveDate::from_ymd_opt(2026, 9, n).unwrap();
+        assert_eq!(d, vec![day(1), day(1), day(1), day(1), day(2), day(2)]);
+    }
+
+    #[test]
+    fn forgotten_clock_out_does_not_swallow_next_day() {
+        let punches = [
+            Punch { at: at(1, 8, 0), kind: PunchKind::ClockIn },
+            Punch { at: at(2, 17, 0), kind: PunchKind::ClockOut }, // 33 h später: eigener Tag
+        ];
+        let d = assign_shift_dates(&punches, 16);
+        assert_eq!(d[1], NaiveDate::from_ymd_opt(2026, 9, 2).unwrap());
+    }
 
     #[test]
     fn week_model_basics() {

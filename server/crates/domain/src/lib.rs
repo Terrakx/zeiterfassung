@@ -12,5 +12,5 @@ pub mod vacation;
 pub use absence::{AbsenceKind, AbsenceUnit};
 pub use day::{compute_day, DayInput, DayResult, PauseRule, Warning};
 pub use holidays::{austrian_holidays, easter_sunday, Holiday};
-pub use schedule::{PunchKind, Punch, WeekModel};
+pub use schedule::{assign_shift_dates, Punch, PunchKind, WeekModel};
 pub use vacation::{vacation_days_in_range, working_days};
