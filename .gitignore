@@ -7,3 +7,4 @@
 .env
 /server/target-claude
 /server/data
+/infos
