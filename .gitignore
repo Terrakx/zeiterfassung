@@ -6,3 +6,4 @@
 *.sqlite*
 .env
 /server/target-claude
+/server/data

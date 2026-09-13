@@ -66,10 +66,22 @@
       <p class="small muted">§ 11 AZG: über 6 Stunden Arbeit mindestens 30 Minuten Pause. Der automatische Pausenabzug wird je Mitarbeiter im Wochenmodell aktiviert und ist nur zulässig, wenn die Pausenlage betrieblich festgelegt ist.</p>
     </div>
     <div class="card">
+      <div class="card-title">Stempelsperren</div>
+      <label class="check"><input type="checkbox" bind:checked={s.stempeln_wochenende} />Kommen am Wochenende (Samstag, Sonntag) erlauben</label>
+      <label class="check"><input type="checkbox" bind:checked={s.stempeln_feiertag} />Kommen an Feiertagen erlauben (gesetzliche und betriebliche laut Feiertagskalender)</label>
+      <div class="form-grid" style="margin-top:.6rem">
+        <div class="field"><label for="sv">Stempelfenster von</label><input id="sv" type="time" bind:value={s.stempeln_von} /></div>
+        <div class="field"><label for="sb">Stempelfenster bis</label><input id="sb" type="time" bind:value={s.stempeln_bis} /></div>
+      </div>
+      <p class="small muted">Die Sperren betreffen nur „Kommen“ über Portal und Terminal; Gehen und Pause bleiben immer möglich, damit eine Schicht beendet werden kann. Nachträge und Korrekturen durch die Verwaltung sind weiterhin erlaubt. Stempelfenster leer lassen = keine zeitliche Einschränkung; liegt „bis“ vor „von“, gilt das Fenster über Mitternacht (Nachtbetrieb).</p>
+      <p class="small muted">Nachtarbeit nach § 12a AZG ist Arbeit zwischen 22:00 und 05:00 Uhr. Soll kein Kommen in der Nacht möglich sein, Stempelfenster 05:00 bis 22:00 eintragen. Wer vor 22:00 kommt und länger bleibt, kann trotzdem in die Nachtzeit hineinarbeiten – das zeigt der Arbeitszeitnachweis über die Hinweise zu Tagesarbeitszeit und Ruhezeit.</p>
+    </div>
+    <div class="card">
       <div class="card-title">Urlaub</div>
       <label class="check"><input type="checkbox" bind:checked={s.urlaub_halbe_tage} />Halbe Urlaubstage erlauben</label>
       <label class="check"><input type="checkbox" bind:checked={s.urlaub_stunden} />Stundenweisen Urlaub erlauben</label>
-      <label class="check"><input type="checkbox" bind:checked={s.urlaub_verfall_auto} />Verfall automatisch berechnen (§ 4 Abs 5 UrlG: zwei Jahre nach Ende des Urlaubsjahres, Verbrauch vom ältesten Anspruch)</label>
+      <label class="check"><input type="checkbox" bind:checked={s.urlaub_verfall_auto} />Verjährung automatisch buchen (§ 4 Abs 5 UrlG: zwei Jahre nach Ende des Urlaubsjahres, Verbrauch vom ältesten Anspruch)</label>
+      <p class="small muted">Empfehlung: aus. Nach der Rechtsprechung des EuGH (C-619/16 Kreuziger, C-684/16 Max-Planck; C-120/21) verjährt Urlaub nur, wenn der Arbeitgeber die Mitarbeiterin bzw. den Mitarbeiter nachweislich zur Konsumation aufgefordert und über die drohende Verjährung belehrt hat. Die App zeigt daher nur an, ab wann Ansprüche verjähren können; der Verfall wird nach erfolgter Belehrung als Eintrag „Verfall“ mit Begründung je Mitarbeiter gebucht.</p>
       <div class="field" style="margin-top:.6rem"><label for="uh">Hinweistext bei halben Tagen / Stunden</label><textarea id="uh" rows="3" bind:value={s.urlaub_hinweis}></textarea></div>
     </div>
     <div class="card">

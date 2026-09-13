@@ -1,114 +1,110 @@
-\documentclass[a4paper,landscape,9pt]{extarticle}
-\usepackage[a4paper,landscape,margin=14mm,top=16mm,bottom=18mm]{geometry}
+\documentclass[a4paper,9pt]{extarticle}
+\usepackage[a4paper,left=16mm,right=16mm,top=14mm,bottom=16mm,footskip=7mm]{geometry}
 \usepackage{fontspec}
-\setmainfont{Latin Modern Sans}
+\IfFontExistsTF{IBM Plex Sans}{\setmainfont{IBM Plex Sans}[Numbers=Monospaced]}{\setmainfont{Latin Modern Sans}}
 \usepackage[table]{xcolor}
 \usepackage{longtable,booktabs,array,graphicx,fancyhdr,lastpage,tabularx}
 \usepackage[german]{babel}
 \definecolor{primary}{HTML}{ {{- primary_hex -}} }
-\definecolor{muted}{HTML}{667085}
-\definecolor{neg}{HTML}{C0392B}
-\definecolor{pos}{HTML}{1E8E5A}
-\definecolor{weekend}{HTML}{F2F4F6}
-\definecolor{holiday}{HTML}{FFF3D6}
-\renewcommand{\arraystretch}{1.15}
-\setlength{\tabcolsep}{4pt}
+\definecolor{ink}{HTML}{1C1F22}
+\definecolor{muted}{HTML}{6B7176}
+\definecolor{head}{HTML}{4A5055}
+\definecolor{light}{HTML}{8A9096}
+\definecolor{line}{HTML}{E2E4E6}
+\definecolor{border}{HTML}{C9CDD0}
+\definecolor{weekend}{HTML}{F1F1F0}
+\definecolor{holiday}{HTML}{FFF7E0}
+\definecolor{ok}{HTML}{2E7D4F}
+\definecolor{err}{HTML}{B3261E}
+\color{ink}
+{% raw %}
+\newcommand{\fs}[2]{\fontsize{#1}{#2}\selectfont}
+\newcommand{\metalabel}[1]{\leavevmode{\fs{7.5}{9}\color{muted}\addfontfeature{LetterSpace=6}\MakeUppercase{#1}}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\newcommand{\thead}[1]{\leavevmode{\fs{7.5}{9}\color{head}#1}}
+\newcommand{\kpi}[3]{\rule{0pt}{5mm}\begin{tabular}[t]{@{}l@{}}{\fs{7.5}{9}\color{muted}#1}\\[0.3mm]{\fs{12}{14}\bfseries\color{#3}#2}\rule[-2mm]{0pt}{0pt}\end{tabular}}
+{% endraw %}
 \pagestyle{fancy}
 \fancyhf{}
-\lhead{\small\textcolor{muted}{ {{- firmenname -}} \ · Arbeitszeitaufzeichnung nach § 26 AZG}}
-\rhead{\small\textcolor{muted}{ {{- mitarbeiter -}} \ · {{ monat_label }} }}
-\lfoot{\scriptsize\textcolor{muted}{ {{- fusszeile -}} }}
-\cfoot{\scriptsize\textcolor{muted}{Erstellt am {{ erstellt_am }}{% if vorschau %} · VORSCHAU, nicht abgeschlossen{% endif %} · Datenbasis {{ hash }}}}
-\rfoot{\scriptsize\textcolor{muted}{Seite \thepage\ von \pageref{LastPage}}}
-\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0.3pt}
+\renewcommand{\footrule}{\hbox to\headwidth{\color{line}\leaders\hrule height \footrulewidth\hfill}}
+\lfoot{\fs{7.5}{9}\color{light}{{ fusszeile }}}
+\rfoot{\fs{7.5}{9}\color{light}Arbeitszeitnachweis {{ monat }} · Nr.\,{{ personalnr }} · Seite \thepage/\pageref{LastPage}}
+\setlength{\parindent}{0pt}
+\setlength{\LTleft}{0pt}\setlength{\LTright}{0pt}\setlength{\LTpre}{0pt}\setlength{\LTpost}{0pt}
 \begin{document}
 
-\noindent
-\begin{minipage}[t]{0.62\textwidth}
-{% if logo %}\includegraphics[height=11mm]{ {{- logo -}} }\\[2mm]{% endif %}
-{\LARGE\bfseries\textcolor{primary}{Zeitaufzeichnung {{ monat_label }}}}\\[1.5mm]
-{\large {{ mitarbeiter }}}\quad\textcolor{muted}{Personalnummer {{ personalnr }}}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.36\textwidth}
-\small
-\begin{tabular}{@{}ll@{}}
-Wochenmodell (Mo–So) & {{ wochenmodell }}\\
-Wochenstunden & {{ wochenstunden }}\\
-Durchrechnungszeitraum & {{ durchrechnung }}\\
-{% if gleitzeit %}Gleitzeitrahmen & {{ gleitzeit }}\\{% endif %}
-Erfassung & {{ erfassung_hinweis }}\\
+% ===== Kopf =====
+\begin{minipage}[b]{0.6\textwidth}
+\begin{tabular}{@{}l@{\hspace{3mm}}l@{}}
+{% if logo %}\includegraphics[height=9mm]{ {{- logo -}} }{% else %}{\setlength{\fboxsep}{0pt}\colorbox{primary}{\parbox[c][9mm][c]{9mm}{\centering\color{white}\bfseries\fs{12}{12}{{ initial }}}}}{% endif %} &
+\begin{tabular}[c]{@{}l@{}}{\fs{12}{14}\bfseries {{ firmenname }}}\\[0.5mm]{\fs{8}{10}\color{muted}Arbeitszeitaufzeichnung nach §\,26 AZG}\end{tabular}
 \end{tabular}
+\end{minipage}\hfill
+\begin{minipage}[b]{0.38\textwidth}\raggedleft
+{\fs{16}{17}\bfseries Arbeitszeitnachweis}\\[1.5mm]
+{\fs{11}{13}{{ monat_label }}}
 \end{minipage}
 
-\vspace{3mm}
-\begin{longtable}{@{}l l r l l r r l r r p{58mm}@{}}
-\toprule
-\textbf{Datum} & \textbf{Tag} & \textbf{Soll} & \textbf{Kommen} & \textbf{Gehen} & \textbf{Pause} & \textbf{Ist} & \textbf{Abwesenheit} & \textbf{Diff} & \textbf{Saldo} & \textbf{Bemerkung}\\
-\midrule
-\endfirsthead
-\toprule
-\textbf{Datum} & \textbf{Tag} & \textbf{Soll} & \textbf{Kommen} & \textbf{Gehen} & \textbf{Pause} & \textbf{Ist} & \textbf{Abwesenheit} & \textbf{Diff} & \textbf{Saldo} & \textbf{Bemerkung}\\
-\midrule
+\vspace{3mm}{\color{ink}\rule{\textwidth}{1.2pt}}
+
+\vspace{4mm}
+% ===== Stammdaten =====
+\begin{tabularx}{\textwidth}{@{}XXX@{}}
+\metalabel{Mitarbeiter:in} & \metalabel{Personalnummer} & \metalabel{Wochenmodell}\\[0.5mm]
+{\fs{11}{13}\bfseries {{ mitarbeiter }}} & {{ personalnr }} & {{ wochenmodell }} · {{ wochenstunden }}/Woche\\[3mm]
+\metalabel{Durchrechnung} & \metalabel{Gleitzeitrahmen} & \\[0.5mm]
+{{ durchrechnung }} & {% if gleitzeit %}{{ gleitzeit }}{% else %}–{% endif %} &\\
+\end{tabularx}
+
+\vspace{5mm}
+% ===== Kennzahlen =====
+{\setlength{\tabcolsep}{3mm}\setlength{\arrayrulewidth}{0.4pt}\arrayrulecolor{border}
+\begin{tabularx}{\textwidth}{|X!{\color{line}\vrule}X!{\color{line}\vrule}X!{\color{line}\vrule}X!{\color{line}\vrule}X!{\color{line}\vrule}X|}
+\hline
+{% for k in kpis %}\kpi{ {{- k.label -}} }{ {{- k.value -}} }{ {{- k.color -}} }{% if not loop.last %} & {% endif %}{% endfor %}\\
+\hline
+\end{tabularx}}
+
+\vspace{5mm}
+% ===== Tage =====
+% Feste Breiten: 13+8+12+13+13+12+12+55+16 = 154 mm + 8 Zwischenräume × 2 × 1,5 mm (@{} außen) = 178 mm Textbreite
+{\fs{8.5}{11}\renewcommand{\arraystretch}{1.05}\setlength{\tabcolsep}{1.5mm}\setlength{\arrayrulewidth}{0.3pt}
+\begin{longtable}{@{}L{13mm}L{8mm}R{12mm}R{13mm}R{13mm}R{12mm}R{12mm}L{55mm}R{16mm}@{}}
+\arrayrulecolor{ink}\specialrule{0.8pt}{0pt}{0pt}
+\thead{Datum} & \thead{Tag} & \thead{Soll} & \thead{Kommen} & \thead{Gehen} & \thead{Pause} & \thead{Ist} & \thead{Abwesenheit} & \thead{Differenz}\\
+\specialrule{0.8pt}{0pt}{0pt}
 \endhead
-\midrule
-\multicolumn{11}{r}{\scriptsize\textcolor{muted}{Fortsetzung nächste Seite}}\\
+\arrayrulecolor{line}\hline
+\multicolumn{9}{r}{\fs{7.5}{9}\color{muted}Fortsetzung auf der nächsten Seite}\\
 \endfoot
-\bottomrule
 \endlastfoot
 {% for d in days -%}
 {% if d.holiday %}\rowcolor{holiday}{% elif d.weekend %}\rowcolor{weekend}{% endif %}
-{{ d.datum }} & {{ d.tag }} & {{ d.soll }} & {{ d.kommen }} & {{ d.gehen }} & {{ d.pause }} & {{ d.ist }} & {{ d.abwesenheit }} & {% if d.diff_neg %}\textcolor{neg}{ {{- d.diff -}} }{% else %}{{ d.diff }}{% endif %} & {{ d.saldo }} & {\scriptsize {{ d.bemerkung }}}\\
+{% if d.weekend and not d.holiday %}\textcolor{light}{ {{- d.datum -}} } & \textcolor{light}{ {{- d.tag -}} }{% else %}{{ d.datum }} & {{ d.tag }}{% endif %} & {{ d.soll }} & {{ d.kommen }} & {{ d.gehen }} & {{ d.pause }} & {{ d.ist }} & {{ d.abwesenheit }} & {% if d.diff_pos %}\textcolor{ok}{ {{- d.diff -}} }{% elif d.diff_neg %}\textcolor{err}{ {{- d.diff -}} }{% else %}{{ d.diff }}{% endif %}\\
+\arrayrulecolor{line}\hline
 {% endfor %}
-\midrule
-\textbf{Summe} & & \textbf{ {{- soll -}} } & & & {{ pause }} & \textbf{ {{- ist -}} } & {{ abwesenheit }} & \textbf{ {{- diff -}} } & \textbf{ {{- saldo_ende -}} } & \\
-\end{longtable}
+\arrayrulecolor{ink}\specialrule{0.8pt}{0pt}{0pt}
+\multicolumn{2}{@{}l}{\rule{0pt}{4mm}\bfseries Summe} & \bfseries {{ soll }} & & & \bfseries {{ pause }} & \bfseries {{ ist }} & & \bfseries {% if diff_pos %}\textcolor{ok}{ {{- diff -}} }{% elif diff_neg %}\textcolor{err}{ {{- diff -}} }{% else %}{{ diff }}{% endif %}\\
+\end{longtable}}
 
 \vspace{2mm}
-\noindent\begin{minipage}{\textwidth}
-\noindent
-\begin{minipage}[t]{0.48\textwidth}
-\small
-\textbf{Zusammenfassung}\\[1mm]
-\begin{tabular}{@{}lr@{}}
-Sollzeit & {{ soll }}\\
-Arbeitszeit (Ist) & {{ ist }}\\
-Bezahlte Nichtleistungszeit & {{ abwesenheit }}\\
-Feiertagsausfall & {{ feiertag }}\\
-Differenz im Monat & {{ diff }}\\
-Saldo Monatsbeginn & {{ saldo_start }}\\
-{% if uebertragen %}In Gutstunden übertragen & {{ uebertragen }}\\{% endif %}
-\textbf{Saldo Monatsende} & \textbf{ {{- saldo_ende -}} }\\
-\end{tabular}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.48\textwidth}
-\small
-\textbf{Abwesenheiten und Konten}\\[1mm]
-\begin{tabular}{@{}lr@{}}
-{% for a in abwesenheiten %}{{ a.label }} & {{ a.wert }}\\
-{% endfor %}
-Resturlaub zum Monatsende & {{ resturlaub }} Tage\\
-{% for g in gutstunden %}Gutstunden Topf {{ g.topf }} & {{ g.saldo }}\\
-{% endfor %}
-\end{tabular}
-\end{minipage}
-
-{% if hinweise %}
-\vspace{3mm}
-\noindent\small\textbf{Hinweise}\\
-\begin{itemize}\setlength{\itemsep}{0pt}
-{% for h in hinweise %}\item {{ h }}
-{% endfor %}
-\end{itemize}
+{\fs{7.5}{9}\color{muted}Wochenende grau · Feiertag gelb\hspace{6mm}Erstellt am {{ erstellt_am }} · {% if vorschau %}\textcolor{err}{Vorschau, Monat nicht abgeschlossen}{% else %}Monat abgeschlossen{% endif %} · Datenbasis {{ hash }}\par}
+{% if konten %}
+\vspace{1mm}
+{\fs{7.5}{9}\color{muted}{{ konten }}\par}
 {% endif %}
 
-\vspace{10mm}
-\noindent
-\begin{tabularx}{\textwidth}{@{}X X@{}}
-\rule{70mm}{0.4pt} & \rule{70mm}{0.4pt}\\
-\small {{ unterschrift_1 }}, Datum & \small {{ unterschrift_2 }}, Datum\\
-\end{tabularx}
-\end{minipage}
+\vfill
+% ===== Unterschriften =====
+\vspace{6mm}
+{\setlength{\tabcolsep}{0pt}\arrayrulecolor{ink}\setlength{\arrayrulewidth}{0.4pt}
+\begin{tabularx}{\textwidth}{@{}X@{\hspace{12mm}}X@{}}
+\rule{0pt}{14mm} & \rule{0pt}{14mm}\\
+\cline{1-1}\cline{2-2}
+\rule{0pt}{4mm}{\fs{8}{10}Datum, Unterschrift {{ unterschrift_1 }}} & \rule{0pt}{4mm}{\fs{8}{10}Datum, Unterschrift {{ unterschrift_2 }}}\\
+\end{tabularx}}
 
 \end{document}

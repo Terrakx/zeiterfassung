@@ -11,7 +11,7 @@
   let f = $state({
     personalnr: '', vorname: '', nachname: '', username: '', rolle: 'mitarbeiter', eintritt: todayIso(),
     urlaubsanspruch_tage: 25, urlaubsjahr_beginn_mm_dd: '01-01', durchrechnung_monate: 3, durchrechnung_start: todayIso(),
-    passwort: '', pin: '', wochenmodell: [8, 8, 8, 8, 8, 0, 0], stempelt: true
+    passwort: '', pin: '', wochenmodell: [8, 8, 8, 8, 8, 0, 0], stempelt: true, resturlaub_start: '' as string | number
   });
 
   async function load() {
@@ -28,7 +28,8 @@
     e.preventDefault();
     error = '';
     try {
-      const r: any = await api.post('/employees', { ...f, wochenmodell: f.wochenmodell.map(Number) });
+      const rest = f.resturlaub_start === '' ? null : Number(f.resturlaub_start);
+      const r: any = await api.post('/employees', { ...f, wochenmodell: f.wochenmodell.map(Number), resturlaub_start: rest });
       dlg.close();
       goto(`/admin/mitarbeiter/${r.employee.id}`);
     } catch (err) { error = errMsg(err); }
@@ -80,6 +81,7 @@
       <div class="field"><label for="ro">Rolle</label><select id="ro" bind:value={f.rolle}><option value="mitarbeiter">Mitarbeiter</option><option value="admin">Admin</option></select></div>
       <div class="field"><label for="ua">Urlaubsanspruch Tage/Jahr</label><input id="ua" type="number" step="0.5" bind:value={f.urlaubsanspruch_tage} /></div>
       <div class="field"><label for="uj">Urlaubsjahr beginnt (MM-TT)</label><input id="uj" bind:value={f.urlaubsjahr_beginn_mm_dd} pattern="[0-1][0-9]-[0-3][0-9]" /></div>
+      <div class="field"><label for="rs">Resturlaub zum Erfassungsbeginn (Tage)</label><input id="rs" type="number" step="0.5" min="0" bind:value={f.resturlaub_start} placeholder="z. B. 30" /><span class="help">Gesamter offener Urlaub am Tag „Zeiterfassung ab“ laut Lohnverrechnung, inkl. laufendem Urlaubsjahr. 0 = voll verbraucht. Leer = später im Reiter Urlaub nachtragen.</span></div>
       <div class="field"><label for="dm">Durchrechnung (Monate)</label><input id="dm" type="number" min="1" max="12" bind:value={f.durchrechnung_monate} /></div>
       <div class="field"><label for="pw">Passwort</label><input id="pw" type="text" bind:value={f.passwort} autocomplete="off" /><span class="help">Leer lassen, wenn kein Portal-Login gewünscht ist.</span></div>
       <div class="field"><label for="pi">Terminal-PIN (4 bis 8 Ziffern)</label><input id="pi" type="text" bind:value={f.pin} inputmode="numeric" autocomplete="off" /></div>

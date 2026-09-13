@@ -289,6 +289,9 @@ dialog h2 { margin: 0 0 16px; font-size: 18px; }
 .terminal .actions button { height: 140px; border-radius: 12px; font-size: 32px; font-weight: 600; background: var(--surface); border: 2px solid var(--border-input); color: var(--ink); }
 .terminal.dark .actions button { background: #22272b; border-color: #33393e; color: #f1f2f3; }
 .terminal .actions button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+/* Stempelsperre: nimmt den Platz des Kommen-Buttons ein, in Kiosk-Größe */
+.terminal .actions .t-block { grid-column: 1 / -1; min-height: 140px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px 28px; border-radius: 12px; font-size: 24px; line-height: 1.4; background: var(--warn-bg); border: 2px solid var(--warn-border); color: var(--warn-fg); }
+.terminal.dark .actions .t-block { background: #3a3117; border-color: #6b5a1e; color: #f5dc8f; }
 .terminal .t-foot { display: flex; justify-content: space-between; font-size: 15px; color: var(--muted); gap: 16px; }
 .terminal.dark .t-foot { color: #7d848a; }
 .terminal .t-foot button { border: 0; background: transparent; color: inherit; padding: 0; height: auto; font-weight: 400; font-size: 15px; }

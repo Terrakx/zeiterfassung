@@ -16,6 +16,8 @@ use crate::{
     calc,
     db::{self, Employee},
     error::{bad, ApiResult, AppError},
+    holidays,
+    settings::{self, Settings},
     time, AppState,
 };
 
@@ -98,10 +100,48 @@ fn allowed(state: PresenceState, kind: PunchKind) -> bool {
     )
 }
 
+/// Grund, warum „Kommen“ zum Zeitpunkt `at` (lokal) durch die Betriebseinstellungen gesperrt ist.
+/// `holiday` ist der Name des Feiertags am Tag von `at`, falls es einer ist.
+pub fn clock_in_block(s: &Settings, at: NaiveDateTime, holiday: Option<&str>) -> Option<String> {
+    use chrono::{Datelike, Timelike, Weekday};
+    if let (false, Some(name)) = (s.stempeln_feiertag, holiday) {
+        return Some(format!("Stempeln am Feiertag ({name}) ist nicht vorgesehen."));
+    }
+    if !s.stempeln_wochenende && matches!(at.weekday(), Weekday::Sat | Weekday::Sun) {
+        return Some("Stempeln am Wochenende ist nicht vorgesehen.".into());
+    }
+    if let (Some(von), Some(bis)) = (settings::parse_hm(&s.stempeln_von), settings::parse_hm(&s.stempeln_bis)) {
+        let now = at.hour() * 60 + at.minute();
+        let inside = if von <= bis { (von..=bis).contains(&now) } else { now >= von || now <= bis };
+        if !inside {
+            return Some(format!("Kommen ist nur zwischen {} und {} Uhr möglich.", s.stempeln_von, s.stempeln_bis));
+        }
+    }
+    None
+}
+
+/// Aktuelle Stempelsperre für „Kommen“ laut Einstellungen und Feiertagskalender.
+async fn current_clock_in_block(db: &SqlitePool) -> ApiResult<Option<String>> {
+    use chrono::Datelike;
+    let s = settings::load(db).await?;
+    let at = time::to_local(time::now_utc());
+    let holiday = if s.stempeln_feiertag {
+        None
+    } else {
+        holidays::for_year(db, at.year()).await?.into_iter().find(|h| h.date == at.date()).map(|h| h.name)
+    };
+    Ok(clock_in_block(&s, at, holiday.as_deref()))
+}
+
 /// Stempelung mit Zustandsprüfung. Offene Schicht vom Vortag wird berücksichtigt.
 async fn do_punch(db: &SqlitePool, emp: &Employee, kind: PunchKind, quelle: &str, kommentar: Option<String>) -> ApiResult<Value> {
     if !emp.stempelt {
         return Err(AppError::Forbidden);
+    }
+    if kind == PunchKind::ClockIn {
+        if let Some(grund) = current_clock_in_block(db).await? {
+            return Err(AppError::Conflict(format!("{grund} Bitte an die Verwaltung wenden.")));
+        }
     }
     let now = time::now_utc();
     let today = time::to_local(now).date();
@@ -155,10 +195,12 @@ pub async fn status_json(db: &SqlitePool, emp: &Employee) -> ApiResult<Value> {
     };
     // Saldo bis gestern: der laufende Tag ist erst nach „Gehen“ aussagekräftig.
     let saldo = calc::saldo_until(db, emp, yesterday).await?;
+    let sperre = if state == PresenceState::Draussen { current_clock_in_block(db).await? } else { None };
     Ok(json!({
         "name": emp.display_name(),
         "personalnr": emp.personalnr,
         "zustand": state,
+        "sperre": sperre,
         "jetzt": time::to_local(now).format("%H:%M").to_string(),
         "heute": day.punches,
         "tag": day,
@@ -325,4 +367,40 @@ async fn storno(State(state): State<AppState>, AdminUser(admin): AdminUser, Path
         .await?;
     db::audit(&state.db, Some(admin.id), "stempelung_storniert", Some(format!("punch:{id}")), Some(row_json(&row)), Some(json!({"grund": req.grund}))).await?;
     Ok(Json(json!({"ok": true})))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn at(date: &str, hm: &str) -> NaiveDateTime {
+        NaiveDateTime::parse_from_str(&format!("{date} {hm}"), "%Y-%m-%d %H:%M").unwrap()
+    }
+
+    #[test]
+    fn keine_sperre_in_standardeinstellung() {
+        let s = Settings::default();
+        assert_eq!(clock_in_block(&s, at("2026-09-12", "03:00"), Some("Feiertag")), None);
+    }
+
+    #[test]
+    fn wochenende_und_feiertag() {
+        let s = Settings { stempeln_wochenende: false, stempeln_feiertag: false, ..Settings::default() };
+        assert!(clock_in_block(&s, at("2026-09-12", "09:00"), None).unwrap().contains("Wochenende")); // Samstag
+        assert_eq!(clock_in_block(&s, at("2026-09-14", "09:00"), None), None); // Montag
+        assert!(clock_in_block(&s, at("2026-10-26", "09:00"), Some("Nationalfeiertag")).unwrap().contains("Nationalfeiertag"));
+    }
+
+    #[test]
+    fn stempelfenster_auch_ueber_mitternacht() {
+        let s = Settings { stempeln_von: "06:00".into(), stempeln_bis: "20:00".into(), ..Settings::default() };
+        assert_eq!(clock_in_block(&s, at("2026-09-14", "06:00"), None), None);
+        assert_eq!(clock_in_block(&s, at("2026-09-14", "20:00"), None), None);
+        assert!(clock_in_block(&s, at("2026-09-14", "05:59"), None).is_some());
+        assert!(clock_in_block(&s, at("2026-09-14", "22:30"), None).is_some());
+        let nacht = Settings { stempeln_von: "20:00".into(), stempeln_bis: "06:00".into(), ..Settings::default() };
+        assert_eq!(clock_in_block(&nacht, at("2026-09-14", "23:00"), None), None);
+        assert_eq!(clock_in_block(&nacht, at("2026-09-14", "05:00"), None), None);
+        assert!(clock_in_block(&nacht, at("2026-09-14", "12:00"), None).is_some());
+    }
 }

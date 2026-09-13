@@ -359,37 +359,20 @@ fn signed(min: i32) -> String {
 pub async fn render_month_pdf(db: &SqlitePool, data_dir: &Path, s: &Settings, emp: &Employee, mv: &MonthView, vorschau: bool) -> ApiResult<Vec<u8>> {
     let (from, to) = calc::month_range(&mv.monat)?;
     let labels = schedule_labels(db, emp, to).await?;
-    let mut saldo = mv.saldo_start_min;
-    let mut hinweise: Vec<String> = Vec::new();
     let mut days = Vec::new();
     for d in &mv.days {
-        saldo += d.result.diff_min;
         let weekend = d.weekday == "Sa" || d.weekday == "So";
-        let mut bem = Vec::new();
-        for w in &d.result.warnings {
-            let t = warning_de(w);
-            bem.push(t.clone());
-            hinweise.push(format!("{}: {}", time::fmt_date_de(d.result.date), t));
-        }
-        let mut korrekturen: Vec<String> = Vec::new();
-        for p in d.punches.iter().filter(|p| p["quelle"] == "admin") {
-            let k = p["kommentar"].as_str().unwrap_or("").trim().to_string();
-            if !korrekturen.contains(&k) {
-                korrekturen.push(k);
-            }
-        }
-        if !korrekturen.is_empty() {
-            let k: Vec<String> = korrekturen.into_iter().filter(|k| !k.is_empty()).collect();
-            bem.push(if k.is_empty() { "Nacherfassung durch Verwaltung".into() } else { format!("Nacherfassung durch Verwaltung: {}", k.join(", ")) });
-        }
+        // Der Nachweis enthält keine Hinweise: AZG-Prüfungen, Nacherfassungen und Korrekturen
+        // sind intern und bleiben der Monatsübersicht, dem Abschluss und dem Protokoll vorbehalten.
         let abw: Vec<String> = d
             .absences
             .iter()
             .map(|a| if a.einheit == "tag" { a.label.clone() } else { format!("{} {}", a.label, time::fmt_hm(a.minutes)) })
             .chain(d.holiday_name.iter().map(|h| format!("Feiertag: {h}")))
             .collect();
+        let diff_shown = !(d.result.target_min == 0 && d.result.diff_min == 0) && !d.future;
         days.push(json!({
-            "datum": time::fmt_date_de(d.result.date),
+            "datum": d.result.date.format("%d.%m.").to_string(),
             "tag": d.weekday,
             "weekend": weekend,
             "holiday": d.holiday_name.is_some(),
@@ -399,62 +382,99 @@ pub async fn render_month_pdf(db: &SqlitePool, data_dir: &Path, s: &Settings, em
             "pause": hm_or_empty(d.result.break_min),
             "ist": hm_or_empty(d.result.worked_min),
             "abwesenheit": tex(&abw.join(", ")),
-            "diff": if d.result.target_min == 0 && d.result.diff_min == 0 { String::new() } else { signed(d.result.diff_min) },
-            "diff_neg": d.result.diff_min < 0,
-            "saldo": if d.is_working_day || d.result.diff_min != 0 { signed(saldo) } else { String::new() },
-            "bemerkung": tex(&bem.join("; ")),
+            "diff": if diff_shown { signed(d.result.diff_min) } else { String::new() },
+            "diff_pos": diff_shown && d.result.diff_min > 0,
+            "diff_neg": diff_shown && d.result.diff_min < 0,
         }));
     }
-    let logo_path = logo_for(data_dir, s);
     let transferred = mv.saldo_start_min + mv.diff_min - mv.saldo_ende_min;
-    let uebertragen = if transferred != 0 { Some(time::fmt_hm(transferred)) } else { None };
-    let ctx = json!({
-        "primary_hex": s.primaerfarbe.trim_start_matches('#').to_uppercase(),
-        "firmenname": tex(&s.firmenname),
-        "fusszeile": tex(&s.fusszeile),
-        "mitarbeiter": tex(&emp.display_name()),
-        "personalnr": tex(&emp.personalnr),
-        "monat_label": tex(&month_label_de(&mv.monat)),
-        "erstellt_am": time::to_local(time::now_utc()).format("%d.%m.%Y %H:%M").to_string(),
-        "vorschau": vorschau,
-        "hash": &data_hash(mv)[..12],
-        "logo": logo_path,
-        "wochenmodell": tex(&labels.wochenmodell),
-        "wochenstunden": tex(&labels.wochenstunden),
-        "durchrechnung": tex(&format!("{} Monate ab {}", emp.durchrechnung_monate, time::fmt_date_de(time::parse_date(&emp.durchrechnung_start).unwrap_or(from)))),
-        "gleitzeit": labels.gleitzeit.as_deref().map(tex),
-        "erfassung_hinweis": "Beginn/Ende der Arbeitszeit und Pausen, minutengenau",
-        "days": days,
-        "soll": time::fmt_hm(mv.soll_min),
-        "ist": time::fmt_hm(mv.ist_min),
-        "pause": hm_or_empty(mv.pause_min),
-        "abwesenheit": time::fmt_hm(mv.abwesenheit_min),
-        "feiertag": time::fmt_hm(mv.feiertag_min),
-        "diff": signed(mv.diff_min),
-        "saldo_start": signed(mv.saldo_start_min),
-        "saldo_ende": signed(mv.saldo_ende_min),
-        "uebertragen": uebertragen,
-        "abwesenheiten": mv.abwesenheit_nach_art.iter().map(|a| json!({
-            "label": tex(a["label"].as_str().unwrap_or("")),
-            "wert": format!("{} Tage / {}", fmt_days(a["tage"].as_f64().unwrap_or(0.0)), time::fmt_hm(a["minuten"].as_i64().unwrap_or(0) as i32)),
-        })).collect::<Vec<_>>(),
-        "resturlaub": fmt_days(mv.urlaub["rest"].as_f64().unwrap_or(0.0)),
-        "gutstunden": mv.gutstunden["toepfe"].as_array().map(|t| t.iter().map(|p| json!({
-            "topf": p["topf"], "saldo": signed(p["saldo_min"].as_i64().unwrap_or(0) as i32)
-        })).collect::<Vec<_>>()).unwrap_or_default(),
-        "hinweise": hinweise.iter().map(|h| tex(h)).collect::<Vec<_>>(),
-        "unterschrift_1": tex(&s.unterschrift_1),
-        "unterschrift_2": tex(&s.unterschrift_2),
-    });
-    render_template(data_dir, TEMPLATE, &ctx).await
+    let saldo_color = |min: i32| if min > 0 { "ok" } else if min < 0 { "err" } else { "ink" };
+    let kpis = [
+        ("Soll", time::fmt_hm(mv.soll_min), "ink"),
+        ("Ist gesamt", time::fmt_hm(mv.ist_min), "ink"),
+        ("Differenz", signed(mv.diff_min), saldo_color(mv.diff_min)),
+        ("Saldo Beginn", signed(mv.saldo_start_min), saldo_color(mv.saldo_start_min)),
+        ("Saldo Ende", signed(mv.saldo_ende_min), saldo_color(mv.saldo_ende_min)),
+        ("Resturlaub", format!("{} Tage", fmt_days(mv.urlaub["rest"].as_f64().unwrap_or(0.0))), "ink"),
+    ]
+    .into_iter()
+    .map(|(label, value, color)| json!({ "label": label, "value": value, "color": color }))
+    .collect::<Vec<_>>();
+    // Kompakte Kontenzeile unter der Tabelle: Nichtleistungszeit je Art, Feiertage, Übertrag, Gutstunden.
+    let mut konten: Vec<String> = mv
+        .abwesenheit_nach_art
+        .iter()
+        .map(|a| {
+            format!(
+                "{} {} Tage / {}",
+                a["label"].as_str().unwrap_or(""),
+                fmt_days(a["tage"].as_f64().unwrap_or(0.0)),
+                time::fmt_hm(a["minuten"].as_i64().unwrap_or(0) as i32)
+            )
+        })
+        .collect();
+    if mv.feiertag_min != 0 {
+        konten.push(format!("Feiertagsausfall {}", time::fmt_hm(mv.feiertag_min)));
+    }
+    if transferred != 0 {
+        konten.push(format!("In Gutstunden übertragen {}", time::fmt_hm(transferred)));
+    }
+    for p in mv.gutstunden["toepfe"].as_array().into_iter().flatten() {
+        konten.push(format!("Gutstunden Topf {} {}", p["topf"], signed(p["saldo_min"].as_i64().unwrap_or(0) as i32)));
+    }
+    let konten = if konten.is_empty() { None } else { Some(tex(&format!("Bezahlte Nichtleistungszeit {} · {}", time::fmt_hm(mv.abwesenheit_min), konten.join(" · ")))) };
+    let mut ctx = base_ctx(data_dir, s);
+    ctx.extend(
+        json!({
+            "mitarbeiter": tex(&emp.display_name()),
+            "personalnr": tex(&emp.personalnr),
+            "monat": &mv.monat,
+            "monat_label": tex(&month_label_de(&mv.monat)),
+            "vorschau": vorschau,
+            "hash": &data_hash(mv)[..12],
+            "wochenmodell": tex(&labels.wochenmodell),
+            "wochenstunden": tex(&labels.wochenstunden),
+            "durchrechnung": tex(&format!("{} Monate ab {}", emp.durchrechnung_monate, time::fmt_date_de(time::parse_date(&emp.durchrechnung_start).unwrap_or(from)))),
+            "gleitzeit": labels.gleitzeit.as_deref().map(tex),
+            "kpis": kpis,
+            "days": days,
+            "soll": time::fmt_hm(mv.soll_min),
+            "ist": time::fmt_hm(mv.ist_min),
+            "pause": hm_or_empty(mv.pause_min),
+            "abwesenheit": hm_or_empty(mv.abwesenheit_min),
+            "diff": signed(mv.diff_min),
+            "diff_pos": mv.diff_min > 0,
+            "diff_neg": mv.diff_min < 0,
+            "konten": konten,
+        })
+        .as_object()
+        .cloned()
+        .unwrap_or_default(),
+    );
+    render_template(data_dir, TEMPLATE, &Value::Object(ctx)).await
 }
 
 async fn render_template(data_dir: &Path, template: &str, ctx: &Value) -> ApiResult<Vec<u8>> {
+    // Eigenes Arbeitsverzeichnis je Lauf; das Logo wird hineinkopiert und nur mit seinem Dateinamen
+    // referenziert, damit weder relative Datenverzeichnisse noch Leerzeichen im Pfad LaTeX stören.
+    let dir = data_dir.join("tmp").join(format!("tex-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).map_err(|e| anyhow::anyhow!(e))?;
+    let mut ctx = ctx.clone();
+    if let Some(src) = ctx["logo"].as_str().map(PathBuf::from) {
+        let name = format!("logo.{}", src.extension().and_then(|e| e.to_str()).unwrap_or("png"));
+        match std::fs::copy(&src, dir.join(&name)) {
+            Ok(_) => ctx["logo"] = json!(name),
+            Err(e) => {
+                tracing::warn!("Logo {} nicht kopierbar, PDF ohne Logo: {e}", src.display());
+                ctx["logo"] = Value::Null;
+            }
+        }
+    }
     let mut env = minijinja::Environment::new();
     env.set_auto_escape_callback(|_| minijinja::AutoEscape::None);
     env.add_template("m", template).map_err(|e| anyhow::anyhow!("Template: {e}"))?;
-    let tex_src = env.get_template("m").unwrap().render(ctx).map_err(|e| anyhow::anyhow!("Template render: {e}"))?;
-    compile_latex(data_dir, &tex_src).await
+    let tex_src = env.get_template("m").unwrap().render(&ctx).map_err(|e| anyhow::anyhow!("Template render: {e}"))?;
+    compile_latex(&dir, &tex_src).await
 }
 
 fn logo_for(data_dir: &Path, s: &Settings) -> Option<String> {
@@ -473,6 +493,9 @@ fn base_ctx(data_dir: &Path, s: &Settings) -> serde_json::Map<String, Value> {
     m.insert("fusszeile".into(), json!(tex(&s.fusszeile)));
     m.insert("erstellt_am".into(), json!(time::to_local(time::now_utc()).format("%d.%m.%Y %H:%M").to_string()));
     m.insert("logo".into(), json!(logo_for(data_dir, s)));
+    m.insert("initial".into(), json!(tex(&s.firmenname.trim().chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default())));
+    m.insert("unterschrift_1".into(), json!(tex(&s.unterschrift_1)));
+    m.insert("unterschrift_2".into(), json!(tex(&s.unterschrift_2)));
     m
 }
 
@@ -488,7 +511,7 @@ fn vacation_row(acct: &Value) -> serde_json::Map<String, Value> {
     let f = |k: &str| fmt_days(acct[k].as_f64().unwrap_or(0.0));
     let verfall = acct["verfall_manuell"].as_f64().unwrap_or(0.0) + acct["verfall_auto"].as_f64().unwrap_or(0.0);
     let nv = acct["naechster_verfall"].as_object().map(|n| {
-        format!("{} Tage aus {} verfallen am {}", fmt_days(n["tage"].as_f64().unwrap_or(0.0)), year_opt(&n["aus_urlaubsjahr"]), de_opt(&n["am"]))
+        format!("{} Tage aus {} können ab {} verjähren", fmt_days(n["tage"].as_f64().unwrap_or(0.0)), year_opt(&n["aus_urlaubsjahr"]), de_opt(&n["am"]))
     });
     let mut m = serde_json::Map::new();
     m.insert("jahr".into(), json!(format!("{} – {}", de_opt(&acct["urlaubsjahr_von"]), de_opt(&acct["urlaubsjahr_bis"]))));
@@ -500,8 +523,79 @@ fn vacation_row(acct: &Value) -> serde_json::Map<String, Value> {
     m.insert("verbraucht".into(), json!(f("verbrauch_bis_stichtag")));
     m.insert("geplant".into(), json!(f("geplant")));
     m.insert("rest".into(), json!(f("rest")));
+    m.insert("rest_gesamt".into(), json!(fmt_days(acct["rest"].as_f64().unwrap_or(0.0) + acct["geplant"].as_f64().unwrap_or(0.0))));
     m.insert("naechster_verfall".into(), json!(nv.map(|t| tex(&t))));
     m
+}
+
+/// Bezeichnung des Urlaubsjahres: Kalenderjahr, sonst der Zeitraum.
+fn vacation_year_label(acct: &Value) -> String {
+    match acct["urlaubsjahr_von"].as_str().and_then(time::parse_date) {
+        Some(d) if d.month() == 1 && d.day() == 1 => d.format("%Y").to_string(),
+        Some(_) => format!("{} – {}", de_opt(&acct["urlaubsjahr_von"]), de_opt(&acct["urlaubsjahr_bis"])),
+        None => String::new(),
+    }
+}
+
+fn signed_days(d: f64) -> String {
+    if d > 0.0 { format!("+{}", fmt_days(d)) } else if d < 0.0 { format!("−{}", fmt_days(-d)) } else { "–".into() }
+}
+
+/// Buchungen der Urlaubskartei als Kontoauszug mit laufendem Rest: Übertrag und Anspruch zu Jahresbeginn,
+/// danach Einträge der Verwaltung und Verbrauch chronologisch.
+fn vacation_ledger(acct: &Value, as_of: chrono::NaiveDate) -> Vec<Value> {
+    let arr = |k: &str| acct[k].as_array().cloned().unwrap_or_default();
+    let year_start = acct["urlaubsjahr_von"].as_str().and_then(time::parse_date).unwrap_or(as_of);
+    let mut rows: Vec<(chrono::NaiveDate, u8, String, String, f64, String)> = Vec::new();
+    let uebertrag = acct["uebertrag"].as_f64().unwrap_or(0.0);
+    if uebertrag != 0.0 {
+        rows.push((year_start, 0, "Übertrag".into(), "aus Vorjahren".into(), uebertrag, String::new()));
+    }
+    let anspruch = acct["anspruch"].as_f64().unwrap_or(0.0);
+    let aliquot = acct["anspruch_aliquot"].as_bool().unwrap_or(false);
+    rows.push((year_start, 1, "Anspruch".into(), format!("Urlaubsjahr {}", vacation_year_label(acct)), anspruch, if aliquot { "aliquot nach Eintritt".into() } else { String::new() }));
+    for e in arr("eintraege") {
+        let art = e["art"].as_str().unwrap_or("");
+        if art == "anspruch" || art == "uebertrag" {
+            continue; // bereits in Anspruch/Übertrag enthalten
+        }
+        let datum = e["created_at"].as_str().and_then(|c| time::parse_date(&c[..c.len().min(10)])).unwrap_or(year_start);
+        let label = match art { "korrektur" => "Korrektur", "verfall" => "Verfall", other => other };
+        rows.push((datum, 2, label.into(), e["grund"].as_str().unwrap_or("").into(), e["tage"].as_f64().unwrap_or(0.0), String::new()));
+    }
+    for b in arr("buchungen") {
+        let von = b["von"].as_str().and_then(time::parse_date).unwrap_or(year_start);
+        let bis = b["bis"].as_str().and_then(time::parse_date).unwrap_or(von);
+        let mut bezug = if von == bis { time::fmt_date_de(von) } else { format!("{} – {}", time::fmt_date_de(von), time::fmt_date_de(bis)) };
+        if b["einheit"].as_str().unwrap_or("tag") != "tag" {
+            bezug.push_str(&format!(" ({})", b["einheit"].as_str().unwrap_or("")));
+        }
+        let mut bem: Vec<String> = Vec::new();
+        if von > as_of {
+            bem.push("geplant, noch nicht angetreten".into());
+        }
+        if let Some(k) = b["kommentar"].as_str().filter(|k| !k.trim().is_empty()) {
+            bem.push(k.trim().into());
+        }
+        rows.push((von, 3, b["label"].as_str().unwrap_or("Urlaub").into(), bezug, -b["tage"].as_f64().unwrap_or(0.0), bem.join(" · ")));
+    }
+    rows.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)));
+    let mut rest = 0.0;
+    rows.into_iter()
+        .map(|(datum, _, art, bezug, tage, bem)| {
+            rest += tage;
+            json!({
+                "datum": time::fmt_date_de(datum),
+                "art": tex(&art),
+                "bezug": tex(&bezug),
+                "tage": signed_days(tage),
+                "neg": tage < 0.0,
+                "null": tage == 0.0,
+                "rest": fmt_days(rest),
+                "bem": tex(&bem),
+            })
+        })
+        .collect()
 }
 
 #[derive(Deserialize)]
@@ -529,27 +623,17 @@ async fn vacation_pdf(
     ctx.insert("mitarbeiter".into(), json!(tex(&emp.display_name())));
     ctx.insert("personalnr".into(), json!(tex(&emp.personalnr)));
     ctx.insert("eintritt".into(), json!(time::parse_date(&emp.eintritt).map(time::fmt_date_de).unwrap_or_default()));
+    ctx.insert("anspruch_jahr".into(), json!(fmt_days(emp.urlaubsanspruch_tage)));
     ctx.insert("stichtag".into(), json!(time::fmt_date_de(as_of)));
-    ctx.insert("urlaubsjahr".into(), json!(year_opt(&acct["urlaubsjahr_von"])));
-    ctx.insert("jahr_von".into(), json!(de_opt(&acct["urlaubsjahr_von"])));
-    ctx.insert("jahr_bis".into(), json!(de_opt(&acct["urlaubsjahr_bis"])));
+    ctx.insert("urlaubsjahr".into(), json!(tex(&vacation_year_label(&acct))));
+    ctx.insert("jahr_von_kurz".into(), json!(year_opt(&acct["urlaubsjahr_von"])));
     let arr = |k: &str| acct[k].as_array().cloned().unwrap_or_default();
     ctx.insert("offene".into(), json!(arr("offene_ansprueche").iter().map(|b| json!({
         "jahr": year_opt(&b["aus_urlaubsjahr"]),
         "tage": fmt_days(b["tage"].as_f64().unwrap_or(0.0)),
+        "verfall_am": de_opt(&b["verfall_am"]),
     })).collect::<Vec<_>>()));
-    ctx.insert("buchungen".into(), json!(arr("buchungen").iter().map(|b| json!({
-        "von": de_opt(&b["von"]),
-        "bis": de_opt(&b["bis"]),
-        "art": tex(b["label"].as_str().unwrap_or("")),
-        "tage": fmt_days(b["tage"].as_f64().unwrap_or(0.0)),
-        "kommentar": tex(b["kommentar"].as_str().unwrap_or("")),
-    })).collect::<Vec<_>>()));
-    ctx.insert("eintraege".into(), json!(arr("eintraege").iter().map(|e| json!({
-        "art": tex(e["art"].as_str().unwrap_or("")),
-        "tage": fmt_days(e["tage"].as_f64().unwrap_or(0.0)),
-        "grund": tex(e["grund"].as_str().unwrap_or("")),
-    })).collect::<Vec<_>>()));
+    ctx.insert("buchungen".into(), json!(vacation_ledger(&acct, as_of)));
     ctx.insert("historie".into(), json!(arr("historie").iter().map(|h| json!({
         "jahr": year_opt(&h["urlaubsjahr_von"]),
         "anspruch": fmt_days(h["anspruch"].as_f64().unwrap_or(0.0)),
@@ -601,25 +685,6 @@ fn month_label_de(monat: &str) -> String {
 fn data_hash(mv: &MonthView) -> String {
     let s = serde_json::to_string(&mv.days).unwrap_or_default();
     hex::encode(Sha256::digest(s.as_bytes()))
-}
-
-fn warning_de(w: &timecard_domain::Warning) -> String {
-    use timecard_domain::Warning::*;
-    match w {
-        OpenShift => "Kommen ohne Gehen".into(),
-        InvalidSequence { at, kind } => format!("Ungültige Stempelfolge {} {}", at.format("%H:%M"), kind.as_str()),
-        MissingBreak { worked_min, break_min } => format!("Pause fehlt oder zu kurz ({} bei {} Arbeit)", time::fmt_hm(*break_min), time::fmt_hm(*worked_min)),
-        AutoBreakDeducted { minutes } => format!("Pause automatisch abgezogen ({minutes} min)"),
-        Over10h { worked_min } => format!("Tagesarbeitszeit über 10 h ({})", time::fmt_hm(*worked_min)),
-        Over12h { worked_min } => format!("Tagesarbeitszeit über 12 h ({}), § 9 AZG", time::fmt_hm(*worked_min)),
-        RestTimeShort { rest_min } => format!("Ruhezeit unter 11 h ({}), § 12 AZG", time::fmt_hm(*rest_min)),
-        WorkOnHoliday => "Arbeit am Feiertag".into(),
-        WorkOnSunday => "Arbeit am Sonntag".into(),
-        AbsenceAndPunches => "Abwesenheit und Stempelung am selben Tag".into(),
-        OutsideFlexFrame { at } => format!("Stempelung {} außerhalb des Gleitzeitrahmens", at.format("%H:%M")),
-        WeekOver50h { worked_min } => format!("Wochenarbeitszeit über 50 h ({})", time::fmt_hm(*worked_min)),
-        WeekOver60h { worked_min } => format!("Wochenarbeitszeit über 60 h ({}), § 9 AZG", time::fmt_hm(*worked_min)),
-    }
 }
 
 struct ScheduleLabels {
@@ -684,9 +749,8 @@ fn base64_decode(s: &str) -> anyhow::Result<Vec<u8>> {
     Ok(out)
 }
 
-async fn compile_latex(data_dir: &Path, tex_src: &str) -> ApiResult<Vec<u8>> {
-    let dir = data_dir.join("tmp").join(format!("tex-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&dir).map_err(|e| anyhow::anyhow!(e))?;
+/// Kompiliert `main.tex` im vorbereiteten Arbeitsverzeichnis `dir` und räumt es bei Erfolg weg.
+async fn compile_latex(dir: &Path, tex_src: &str) -> ApiResult<Vec<u8>> {
     std::fs::write(dir.join("main.tex"), tex_src).map_err(|e| anyhow::anyhow!(e))?;
     let cmd = std::env::var("TIMECARD_LATEX").unwrap_or_else(|_| "latexmk".into());
     let run = tokio::process::Command::new(&cmd)
@@ -706,6 +770,6 @@ async fn compile_latex(data_dir: &Path, tex_src: &str) -> ApiResult<Vec<u8>> {
         return Err(anyhow::anyhow!("PDF-Erzeugung fehlgeschlagen: {}", err_lines.join(" | ")).into());
     }
     let bytes = std::fs::read(&pdf).map_err(|e| anyhow::anyhow!(e))?;
-    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(dir);
     Ok(bytes)
 }

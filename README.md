@@ -18,7 +18,7 @@ Der Umsetzungsplan mit Rechtsrahmen, BMD-Feldregeln und offenen Fragen steht in
 | `server/crates/server` | axum-API, SQLite (sqlx, Migrationen), Sessions, Stammdaten, Stempeln, Abwesenheiten, Konten, Monatsabschluss, LaTeX-PDF, BMD-CSV. Liefert das Frontend aus. |
 | `server/migrations` | Datenbankschema |
 | `web` | SvelteKit-Frontend (static adapter), wird in den Server eingebettet. Design nach `docs/design` (Claude-Design-Handoff), Schrift IBM Plex Sans lokal gebündelt |
-| `latex` | PDF-Vorlage des Monatsberichts (minijinja + LuaLaTeX) |
+| `latex` | PDF-Vorlagen (minijinja + LuaLaTeX): Arbeitszeitnachweis und Urlaubskartei nach `docs/design/…/Timecard PDF.dc.html`, dazu Urlaubs- und Jahresübersicht. Schrift IBM Plex Sans, falls installiert (Docker: `fonts-ibm-plex`), sonst Latin Modern Sans |
 | `deploy` | Dockerfile, Compose, Caddyfile, Backup-Skript |
 | `infos` | Kundenunterlagen (BMD-Dokus, Arbeitszeitrecht) |
 

@@ -21,6 +21,8 @@
   let absences = $state<any[]>([]);
   let vacation = $state<any>(null);
   let ve = $state({ urlaubsjahr: '', art: 'korrektur', tage: 0, grund: '' });
+  let opening = $state<{ rest_tage: number | '' }>({ rest_tage: '' });
+  let openingMsg = $state('');
   let credit = $state<any>(null);
   let ce = $state({ datum: todayIso(), topf: 307, minuten: 0, art: 'korrektur', grund: '' });
   let secretDlg = $state<HTMLDialogElement>();
@@ -93,6 +95,16 @@
   async function addVacEntry(e: Event) {
     e.preventDefault(); error = '';
     try { await api.post(`/employees/${id}/vacation`, ve); ve.grund = ''; ve.tage = 0; await loadVac(); await load(); } catch (err) { error = errMsg(err); }
+  }
+  async function setOpening(e: Event) {
+    e.preventDefault(); error = ''; openingMsg = '';
+    if (opening.rest_tage === '') { error = 'Bitte den Resturlaub in Tagen angeben (0 = voll verbraucht).'; return; }
+    try {
+      const r: any = await api.post(`/employees/${id}/vacation/opening`, { rest_tage: Number(opening.rest_tage) });
+      openingMsg = `Gebucht zum ${dateDe(r.stichtag)}: Übertrag aus Vorjahren ${days(r.uebertrag)} Tage` + (r.korrektur < 0 ? `, Korrektur laufendes Jahr ${days(r.korrektur)} Tage` : '') + ` (Anspruch ${days(r.anspruch)}).`;
+      opening.rest_tage = '';
+      await loadVac(); await load();
+    } catch (err) { error = errMsg(err); }
   }
   async function addCreditEntry(e: Event) {
     e.preventDefault(); error = '';
@@ -261,7 +273,7 @@
           <tr><td style="font-weight:600">Rest</td><td class="right" style="font-weight:600">{days(vacation.rest)} Tage</td></tr>
         </tbody></table>
         <p class="small muted" style="margin:12px 0 0">Offene Ansprüche: {#each vacation.offene_ansprueche as b, i}{i ? ', ' : ''}{days(b.tage)} aus {b.aus_urlaubsjahr.slice(0, 4)}{/each}</p>
-        {#if vacation.naechster_verfall}<p class="small" style="color:var(--warn);margin:4px 0 0">{days(vacation.naechster_verfall.tage)} Tage verfallen am {dateDe(vacation.naechster_verfall.am)}</p>{/if}
+        {#if vacation.naechster_verfall}<p class="small" style="color:var(--warn);margin:4px 0 0">{days(vacation.naechster_verfall.tage)} Tage aus {vacation.naechster_verfall.aus_urlaubsjahr.slice(0, 4)} können ab {dateDe(vacation.naechster_verfall.am)} verjähren (§ 4 Abs 5 UrlG) – nach EuGH nur, wenn zur Konsumation aufgefordert und über die Verjährung belehrt wurde.{#if !vacation.verfall_auto_aktiv} Verfall wird nicht automatisch gebucht.{/if}</p>{/if}
         <div class="row" style="margin-top:14px"><a class="btn" href={`/api/reports/vacation/${id}/pdf`} target="_blank">Urlaubskartei PDF</a></div>
         <h2>Buchungen im Urlaubsjahr</h2>
         <table class="inline-table"><tbody>
@@ -270,6 +282,17 @@
           {#if !vacation.buchungen.length && !vacation.eintraege.length}<tr><td class="muted" colspan="3">Keine Buchungen.</td></tr>{/if}
         </tbody></table>
       </div>
+      <div>
+      {#if vacation.uebertrag_offen}<div class="alert warn">Resturlaub zum Erfassungsbeginn ({dateDe(vacation.erfassung_ab)}) ist noch nicht erfasst. Vorjahre vor dem Erfassungsbeginn werden mit 0 angenommen.</div>{/if}
+      {#if openingMsg}<div class="alert ok">{openingMsg}</div>{/if}
+      <form class="card" style="margin:0 0 16px" onsubmit={setOpening}>
+        <div class="card-title">Erstanlage: Resturlaub zum Erfassungsbeginn</div>
+        <p class="small muted">Gesamter offener Urlaub am {dateDe(vacation.erfassung_ab)} laut Lohnverrechnung, inklusive Anspruch des laufenden Urlaubsjahres. 0 = voll verbraucht. Der Stand wird als Übertrag aus dem Vorjahr gebucht; liegt er unter dem Jahresanspruch, als Korrektur. Ein erneutes Speichern ersetzt die frühere Erstanlage-Buchung. Abwesenheiten vor dem Erfassungsbeginn nicht zusätzlich eintragen.</p>
+        <div class="form-grid">
+          <div class="field"><label for="or">Resturlaub (Tage)</label><input id="or" type="number" step="0.5" min="0" bind:value={opening.rest_tage} placeholder="z. B. 30" /></div>
+        </div>
+        <div class="row" style="justify-content:flex-end"><button class="primary">Buchen</button></div>
+      </form>
       <form class="card" style="margin:0" onsubmit={addVacEntry}>
         <div class="card-title">Eintrag hinzufügen</div>
         <p class="small muted">Anspruch übersteuert die automatische Berechnung, Übertrag den durchgerechneten Vorjahresrest. Korrektur und Verfall werden addiert (Verfall negativ eintragen).</p>
@@ -281,6 +304,7 @@
         <div class="field" style="margin-top:16px"><label for="vg">Begründung</label><input id="vg" bind:value={ve.grund} required /></div>
         <div class="row" style="justify-content:flex-end"><button class="primary">Speichern</button></div>
       </form>
+      </div>
     </div>
 
   {:else if tab === 'gutstunden' && credit}

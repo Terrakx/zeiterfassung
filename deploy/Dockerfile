@@ -20,7 +20,7 @@ FROM debian:bookworm-slim AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         texlive-luatex texlive-latex-base texlive-latex-recommended texlive-latex-extra \
-        texlive-fonts-recommended texlive-lang-german latexmk fonts-lmodern \
+        texlive-fonts-recommended texlive-lang-german latexmk fonts-lmodern fonts-ibm-plex \
         ca-certificates tzdata sqlite3 \
     && rm -rf /var/lib/apt/lists/* \
     && luaotfload-tool --update >/dev/null 2>&1 || true

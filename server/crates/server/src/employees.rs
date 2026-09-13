@@ -63,6 +63,8 @@ struct EmployeeReq {
     pin: Option<String>,
     /// Stunden Mo..So, z. B. [8,8,8,8,8,0,0]
     wochenmodell: Option<[f64; 7]>,
+    /// Resturlaub in Tagen zum Erfassungsbeginn (nur bei Anlage; leer = nicht gesetzt)
+    resturlaub_start: Option<f64>,
 }
 
 fn validate(req: &EmployeeReq) -> ApiResult<()> {
@@ -154,6 +156,9 @@ async fn create(
     tx.commit().await?;
     db::audit(&state.db, Some(admin.id), "mitarbeiter_angelegt", Some(format!("employee:{id}")), None, Some(json!({"personalnr": req.personalnr}))).await?;
     let e = db::get_employee(&state.db, id).await?;
+    if let Some(rest) = req.resturlaub_start {
+        crate::absences::set_opening_balance(&state.db, &e, admin.id, rest).await?;
+    }
     Ok(Json(json!({ "employee": e })))
 }
 

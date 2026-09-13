@@ -5,7 +5,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::SqlitePool;
 
-use crate::{auth::AdminUser, db, error::ApiResult, AppState};
+use crate::{
+    auth::AdminUser,
+    db,
+    error::{bad, ApiResult},
+    AppState,
+};
+
+/// "HH:MM" als Minuten seit Mitternacht.
+pub fn parse_hm(s: &str) -> Option<u32> {
+    let (h, m) = s.trim().split_once(':')?;
+    let (h, m): (u32, u32) = (h.parse().ok()?, m.parse().ok()?);
+    (h < 24 && m < 60).then_some(h * 60 + m)
+}
 
 const KEY: &str = "app";
 
@@ -32,10 +44,15 @@ pub struct Settings {
     pub pause_schwelle_min: i64,
     pub pause_dauer_min: i64,
     pub rundung_min: i64,                 // 0 = keine Rundung
+    // Stempelsperren: betreffen nur „Kommen“ über Portal und Terminal, nicht Nachträge der Verwaltung
+    pub stempeln_wochenende: bool,        // Kommen an Samstag/Sonntag erlaubt
+    pub stempeln_feiertag: bool,          // Kommen an gesetzlichen/betrieblichen Feiertagen erlaubt
+    pub stempeln_von: String,             // "HH:MM" oder leer = kein Stempelfenster
+    pub stempeln_bis: String,             // "HH:MM"; liegt bis vor von, geht das Fenster über Mitternacht
     // Urlaub
     pub urlaub_halbe_tage: bool,
     pub urlaub_stunden: bool,
-    pub urlaub_verfall_auto: bool,        // Verfall nach § 4 Abs 5 UrlG automatisch berechnen
+    pub urlaub_verfall_auto: bool,        // Verjährung nach § 4 Abs 5 UrlG automatisch buchen (Standard aus: EuGH C-619/16, C-684/16)
     pub urlaub_hinweis: String,
     // PDF
     pub unterschrift_1: String,
@@ -63,9 +80,13 @@ impl Default for Settings {
             pause_schwelle_min: 360,
             pause_dauer_min: 30,
             rundung_min: 0,
+            stempeln_wochenende: true,
+            stempeln_feiertag: true,
+            stempeln_von: String::new(),
+            stempeln_bis: String::new(),
             urlaub_halbe_tage: false,
             urlaub_stunden: false,
-            urlaub_verfall_auto: true,
+            urlaub_verfall_auto: false,
             urlaub_hinweis: "Urlaub ist nach dem Urlaubsgesetz in ganzen Arbeitstagen zu verbrauchen. \
 Ein stundenweiser Verbrauch ist gesetzlich nicht vorgesehen und nur ausnahmsweise auf Wunsch und im \
 Interesse des Arbeitnehmers mit ausdrücklicher Vereinbarung vertretbar. Bitte vor Verwendung rechtlich prüfen."
@@ -131,6 +152,14 @@ async fn put_all(
     Json(new): Json<Settings>,
 ) -> ApiResult<Json<Settings>> {
     let old = load(&state.db).await?;
+    let mut new = new;
+    new.stempeln_von = new.stempeln_von.trim().to_string();
+    new.stempeln_bis = new.stempeln_bis.trim().to_string();
+    match (new.stempeln_von.is_empty(), new.stempeln_bis.is_empty()) {
+        (true, true) => {}
+        (false, false) if parse_hm(&new.stempeln_von).is_some() && parse_hm(&new.stempeln_bis).is_some() => {}
+        _ => return Err(bad("Stempelfenster: beide Uhrzeiten als HH:MM angeben oder beide leer lassen")),
+    }
     save(&state.db, &new).await?;
     db::audit(
         &state.db,

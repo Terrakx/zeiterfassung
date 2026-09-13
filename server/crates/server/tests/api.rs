@@ -133,6 +133,91 @@ async fn terminal_punch_state_machine() {
 }
 
 #[tokio::test]
+async fn stempelfenster_sperrt_nur_kommen() {
+    use chrono::Timelike;
+    let mut c = Client::new().await;
+    c.login("admin", "admin-test").await;
+    let id = create_employee(&mut c, "7", "maria", [8.0; 7]).await;
+    let punch = |art: &str| json!({"personalnr": "7", "pin": "1234", "art": art});
+    // Stempelfenster so legen, dass „jetzt“ sicher außerhalb liegt: eine Stunde ab in zwei Stunden.
+    let now = timecard_server::time::to_local(timecard_server::time::now_utc());
+    let von = (now.hour() + 2) % 24;
+    let (_, mut s, _) = c.call("GET", "/settings", None).await;
+    s["stempeln_von"] = json!(format!("{von:02}:00"));
+    s["stempeln_bis"] = json!(format!("{:02}:00", (von + 1) % 24));
+    assert_eq!(c.call("PUT", "/settings", Some(s.clone())).await.0, StatusCode::OK);
+    let (st, r, _) = c.call("POST", "/terminal/punch", Some(json!({"personalnr": "7", "pin": "1234"}))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(r["sperre"].as_str().unwrap().contains("Kommen ist nur zwischen"), "{r}");
+    let (st, r, _) = c.call("POST", "/terminal/punch", Some(punch("kommen"))).await;
+    assert_eq!(st, StatusCode::CONFLICT, "{r}");
+    // Nachtrag durch die Verwaltung bleibt möglich, Gehen über das Terminal ebenfalls
+    let zeit = now.format("%Y-%m-%dT%H:%M").to_string();
+    let (st, r, _) = c.call("POST", &format!("/employees/{id}/punches"), Some(json!({"zeit": zeit, "art": "kommen", "kommentar": "Nachtrag"}))).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    let (st, r, _) = c.call("POST", "/terminal/punch", Some(punch("gehen"))).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    assert_eq!(r["zustand"], "draussen");
+    // Ungültiges Fenster wird abgelehnt
+    s["stempeln_bis"] = json!("25:99");
+    assert_eq!(c.call("PUT", "/settings", Some(s.clone())).await.0, StatusCode::BAD_REQUEST);
+    // Fenster entfernen → Kommen geht wieder
+    s["stempeln_von"] = json!("");
+    s["stempeln_bis"] = json!("");
+    assert_eq!(c.call("PUT", "/settings", Some(s)).await.0, StatusCode::OK);
+    let (st, r, _) = c.call("POST", "/terminal/punch", Some(json!({"personalnr": "7", "pin": "1234"}))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(r["sperre"].is_null(), "{r}");
+}
+
+#[tokio::test]
+async fn resturlaub_bei_erstanlage() {
+    let mut c = Client::new().await;
+    c.login("admin", "admin-test").await;
+    // Eintritt 2022, Zeiterfassung ab 2026: Vorjahre sind nicht erfasst
+    let (st, r, _) = c.call("POST", "/employees", Some(json!({
+        "personalnr": "12", "vorname": "Alt", "nachname": "Hase", "username": "alt",
+        "eintritt": "2022-06-01", "durchrechnung_start": "2026-01-01", "urlaubsanspruch_tage": 25,
+        "wochenmodell": [8, 8, 8, 8, 8, 0, 0]
+    }))).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    let id = r["employee"]["id"].as_i64().unwrap();
+    let (_, v, _) = c.call("GET", &format!("/employees/{id}/vacation?stichtag=2026-09-01"), None).await;
+    assert_eq!(v["uebertrag"], 0.0, "ohne Erstanlage kein Phantom-Übertrag: {v}");
+    assert_eq!(v["uebertrag_offen"], true);
+    assert_eq!(v["rest"], 25.0);
+    assert!(v["historie"].as_array().unwrap().is_empty(), "keine Vorjahre vor Erfassungsbeginn");
+    // Resturlaub 30 Tage zum 01.01.2026 → 5 Tage aus dem Vorjahr
+    let (st, r, _) = c.call("POST", &format!("/employees/{id}/vacation/opening"), Some(json!({"rest_tage": 30}))).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    let (_, v, _) = c.call("GET", &format!("/employees/{id}/vacation?stichtag=2026-09-01"), None).await;
+    assert_eq!(v["uebertrag"], 5.0);
+    assert_eq!(v["uebertrag_offen"], false);
+    assert_eq!(v["rest"], 30.0);
+    assert_eq!(v["offene_ansprueche"][0]["aus_urlaubsjahr"], "2025-01-01");
+    // Korrektur der Erstanlage: nur 20 Tage → Vorjahr 0, laufendes Jahr um 5 gekürzt
+    let (st, _, _) = c.call("POST", &format!("/employees/{id}/vacation/opening"), Some(json!({"rest_tage": 20}))).await;
+    assert_eq!(st, StatusCode::OK);
+    let (_, v, _) = c.call("GET", &format!("/employees/{id}/vacation?stichtag=2026-09-01"), None).await;
+    assert_eq!(v["uebertrag"], 0.0);
+    assert_eq!(v["korrektur"], -5.0);
+    assert_eq!(v["rest"], 20.0);
+    assert_eq!(v["eintraege"].as_array().unwrap().len(), 2, "alte Erstanlage-Buchung ersetzt: {v}");
+    // Direkt bei der Anlage mitgeben
+    let (st, r, _) = c.call("POST", "/employees", Some(json!({
+        "personalnr": "13", "vorname": "Neu", "nachname": "Mit", "username": "neumit",
+        "eintritt": "2020-01-01", "durchrechnung_start": "2026-01-01", "urlaubsanspruch_tage": 25,
+        "wochenmodell": [8, 8, 8, 8, 8, 0, 0], "resturlaub_start": 0
+    }))).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    let id2 = r["employee"]["id"].as_i64().unwrap();
+    let (_, v, _) = c.call("GET", &format!("/employees/{id2}/vacation?stichtag=2026-09-01"), None).await;
+    assert_eq!(v["uebertrag_offen"], false);
+    assert_eq!(v["rest"], 0.0, "Rest gesamt 0 = auch der laufende Anspruch ist verbraucht: {v}");
+    assert_eq!(v["korrektur"], -25.0);
+}
+
+#[tokio::test]
 async fn absences_vacation_and_export_preview() {
     let mut c = Client::new().await;
     c.login("admin", "admin-test").await;

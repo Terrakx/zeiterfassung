@@ -62,7 +62,7 @@
       </table>
       {#if offen}<p class="small" style="margin:8px 0 0"><span class="badge warn">{offen} offene {offen === 1 ? 'Antrag' : 'Anträge'}</span> <span class="muted">noch nicht im Konto berücksichtigt</span></p>{/if}
       {#if account.urlaub.naechster_verfall}
-        <p class="small" style="color:var(--warn)">{days(account.urlaub.naechster_verfall.tage)} Tage aus {account.urlaub.naechster_verfall.aus_urlaubsjahr.slice(0, 4)} verfallen am {dateDe(account.urlaub.naechster_verfall.am)}.</p>
+        <p class="small" style="color:var(--warn)">{days(account.urlaub.naechster_verfall.tage)} Tage aus {account.urlaub.naechster_verfall.aus_urlaubsjahr.slice(0, 4)} können ab {dateDe(account.urlaub.naechster_verfall.am)} verjähren (§ 4 Abs 5 UrlG). Bitte rechtzeitig verbrauchen.</p>
       {/if}
       <p class="small"><a href={`/api/reports/vacation/${$user?.id}/pdf`} target="_blank">Urlaubskartei als PDF</a></p>
       <h2>Gutstunden</h2>
