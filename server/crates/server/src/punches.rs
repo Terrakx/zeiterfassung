@@ -100,36 +100,34 @@ fn allowed(state: PresenceState, kind: PunchKind) -> bool {
     )
 }
 
-/// Grund, warum „Kommen“ zum Zeitpunkt `at` (lokal) durch die Betriebseinstellungen gesperrt ist.
+/// Vollständige Meldung, warum „Kommen“ zum Zeitpunkt `at` (lokal) durch die Betriebseinstellungen
+/// gesperrt ist; wird so im Portal, am Terminal und als Fehlermeldung angezeigt.
 /// `holiday` ist der Name des Feiertags am Tag von `at`, falls es einer ist.
 pub fn clock_in_block(s: &Settings, at: NaiveDateTime, holiday: Option<&str>) -> Option<String> {
     use chrono::{Datelike, Timelike, Weekday};
-    if let (false, Some(name)) = (s.stempeln_feiertag, holiday) {
-        return Some(format!("Stempeln am Feiertag ({name}) ist nicht vorgesehen."));
-    }
-    if !s.stempeln_wochenende && matches!(at.weekday(), Weekday::Sat | Weekday::Sun) {
-        return Some("Stempeln am Wochenende ist nicht vorgesehen.".into());
-    }
-    if let (Some(von), Some(bis)) = (settings::parse_hm(&s.stempeln_von), settings::parse_hm(&s.stempeln_bis)) {
-        let now = at.hour() * 60 + at.minute();
+    let grund = if let (false, Some(name)) = (s.stempeln_feiertag, holiday) {
+        format!("Stempeln am Feiertag ({name}) ist nicht vorgesehen.")
+    } else if !s.stempeln_wochenende && matches!(at.weekday(), Weekday::Sat | Weekday::Sun) {
+        "Stempeln am Wochenende ist nicht vorgesehen.".into()
+    } else if let (Some(von), Some(bis)) = (time::parse_hm(&s.stempeln_von), time::parse_hm(&s.stempeln_bis)) {
+        // Minutengenau: die Minute von „bis“ zählt noch zum Fenster.
+        let now = chrono::NaiveTime::from_hms_opt(at.hour(), at.minute(), 0).unwrap_or(at.time());
         let inside = if von <= bis { (von..=bis).contains(&now) } else { now >= von || now <= bis };
-        if !inside {
-            return Some(format!("Kommen ist nur zwischen {} und {} Uhr möglich.", s.stempeln_von, s.stempeln_bis));
+        if inside {
+            return None;
         }
-    }
-    None
+        format!("Kommen ist nur zwischen {} und {} Uhr möglich.", s.stempeln_von, s.stempeln_bis)
+    } else {
+        return None;
+    };
+    Some(format!("{grund} Bitte an die Verwaltung wenden."))
 }
 
 /// Aktuelle Stempelsperre für „Kommen“ laut Einstellungen und Feiertagskalender.
 async fn current_clock_in_block(db: &SqlitePool) -> ApiResult<Option<String>> {
-    use chrono::Datelike;
     let s = settings::load(db).await?;
     let at = time::to_local(time::now_utc());
-    let holiday = if s.stempeln_feiertag {
-        None
-    } else {
-        holidays::for_year(db, at.year()).await?.into_iter().find(|h| h.date == at.date()).map(|h| h.name)
-    };
+    let holiday = if s.stempeln_feiertag { None } else { holidays::name_on(db, at.date()).await? };
     Ok(clock_in_block(&s, at, holiday.as_deref()))
 }
 
@@ -140,7 +138,7 @@ async fn do_punch(db: &SqlitePool, emp: &Employee, kind: PunchKind, quelle: &str
     }
     if kind == PunchKind::ClockIn {
         if let Some(grund) = current_clock_in_block(db).await? {
-            return Err(AppError::Conflict(format!("{grund} Bitte an die Verwaltung wenden.")));
+            return Err(AppError::Conflict(grund));
         }
     }
     let now = time::now_utc();
@@ -195,7 +193,12 @@ pub async fn status_json(db: &SqlitePool, emp: &Employee) -> ApiResult<Value> {
     };
     // Saldo bis gestern: der laufende Tag ist erst nach „Gehen“ aussagekräftig.
     let saldo = calc::saldo_until(db, emp, yesterday).await?;
-    let sperre = if state == PresenceState::Draussen { current_clock_in_block(db).await? } else { None };
+    // Einstellungen und Feiertage sind im Kontext bereits geladen (heißer Pfad: jede Status-Abfrage).
+    let sperre = if state == PresenceState::Draussen {
+        clock_in_block(&ctx.settings, time::to_local(now), ctx.holidays.get(&today).map(String::as_str))
+    } else {
+        None
+    };
     Ok(json!({
         "name": emp.display_name(),
         "personalnr": emp.personalnr,

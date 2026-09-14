@@ -94,6 +94,7 @@ pub struct Context {
     shifts: Vec<(usize, Punch, NaiveDate)>,
     pub absences: Vec<AbsenceRow>,
     pub pause_rule: PauseRule,
+    pub settings: settings::Settings,
 }
 
 /// Maximaler Abstand zwischen zwei Stempelungen einer Schicht (Stunden).
@@ -122,7 +123,7 @@ impl Context {
             required_min: s.pause_dauer_min as i32,
             auto_deduct: false,
         };
-        Ok(Self { emp: emp.clone(), schedules, holidays: hol, punches, shifts, absences, pause_rule })
+        Ok(Self { emp: emp.clone(), schedules, holidays: hol, punches, shifts, absences, pause_rule, settings: s })
     }
 
     fn target(&self, date: NaiveDate) -> (i32, bool) {
@@ -143,9 +144,7 @@ impl Context {
         if !s.gleitzeit {
             return None;
         }
-        let von = chrono::NaiveTime::parse_from_str(s.gleitzeit_von.as_deref()?, "%H:%M").ok()?;
-        let bis = chrono::NaiveTime::parse_from_str(s.gleitzeit_bis.as_deref()?, "%H:%M").ok()?;
-        Some((von, bis))
+        Some((time::parse_hm(s.gleitzeit_von.as_deref()?)?, time::parse_hm(s.gleitzeit_bis.as_deref()?)?))
     }
 
     pub fn day(&self, date: NaiveDate) -> DayView {

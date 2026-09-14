@@ -11,7 +11,8 @@
   let f = $state({
     personalnr: '', vorname: '', nachname: '', username: '', rolle: 'mitarbeiter', eintritt: todayIso(),
     urlaubsanspruch_tage: 25, urlaubsjahr_beginn_mm_dd: '01-01', durchrechnung_monate: 3, durchrechnung_start: todayIso(),
-    passwort: '', pin: '', wochenmodell: [8, 8, 8, 8, 8, 0, 0], stempelt: true, resturlaub_start: '' as string | number
+    // Ein geleertes Zahlenfeld liefert in Svelte 5 null, nicht '' – beides heißt „nicht gesetzt“.
+    passwort: '', pin: '', wochenmodell: [8, 8, 8, 8, 8, 0, 0], stempelt: true, resturlaub_start: '' as string | number | null
   });
 
   async function load() {
@@ -28,7 +29,7 @@
     e.preventDefault();
     error = '';
     try {
-      const rest = f.resturlaub_start === '' ? null : Number(f.resturlaub_start);
+      const rest = f.resturlaub_start === '' || f.resturlaub_start == null ? null : Number(f.resturlaub_start);
       const r: any = await api.post('/employees', { ...f, wochenmodell: f.wochenmodell.map(Number), resturlaub_start: rest });
       dlg.close();
       goto(`/admin/mitarbeiter/${r.employee.id}`);

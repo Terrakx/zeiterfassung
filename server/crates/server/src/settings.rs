@@ -9,15 +9,8 @@ use crate::{
     auth::AdminUser,
     db,
     error::{bad, ApiResult},
-    AppState,
+    time, AppState,
 };
-
-/// "HH:MM" als Minuten seit Mitternacht.
-pub fn parse_hm(s: &str) -> Option<u32> {
-    let (h, m) = s.trim().split_once(':')?;
-    let (h, m): (u32, u32) = (h.parse().ok()?, m.parse().ok()?);
-    (h < 24 && m < 60).then_some(h * 60 + m)
-}
 
 const KEY: &str = "app";
 
@@ -157,7 +150,7 @@ async fn put_all(
     new.stempeln_bis = new.stempeln_bis.trim().to_string();
     match (new.stempeln_von.is_empty(), new.stempeln_bis.is_empty()) {
         (true, true) => {}
-        (false, false) if parse_hm(&new.stempeln_von).is_some() && parse_hm(&new.stempeln_bis).is_some() => {}
+        (false, false) if time::parse_hm(&new.stempeln_von).is_some() && time::parse_hm(&new.stempeln_bis).is_some() => {}
         _ => return Err(bad("Stempelfenster: beide Uhrzeiten als HH:MM angeben oder beide leer lassen")),
     }
     save(&state.db, &new).await?;

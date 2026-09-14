@@ -215,6 +215,63 @@ async fn resturlaub_bei_erstanlage() {
     assert_eq!(v["uebertrag_offen"], false);
     assert_eq!(v["rest"], 0.0, "Rest gesamt 0 = auch der laufende Anspruch ist verbraucht: {v}");
     assert_eq!(v["korrektur"], -25.0);
+    // Stichtag vor dem Erfassungsbeginn: auch dort kein Phantom-Übertrag aus nicht erfassten Jahren
+    let (_, v, _) = c.call("GET", &format!("/employees/{id}/vacation?stichtag=2025-12-31"), None).await;
+    assert_eq!(v["uebertrag"], 0.0, "vor Erfassungsbeginn kein Phantom-Übertrag: {v}");
+    assert_eq!(v["uebertrag_offen"], true);
+    assert!(v["historie"].as_array().unwrap().is_empty());
+    // Manuelle Einträge, deren Begründung mit „Erstanlage:“ beginnt, überleben eine erneute Erstanlage
+    let (st, _, _) = c.call("POST", &format!("/employees/{id}/vacation"), Some(json!({
+        "urlaubsjahr": "2026-01-01", "art": "korrektur", "tage": 1, "grund": "Erstanlage: laut Lohnbüro 1 Tag"
+    }))).await;
+    assert_eq!(st, StatusCode::OK);
+    let (st, _, _) = c.call("POST", &format!("/employees/{id}/vacation/opening"), Some(json!({"rest_tage": 20}))).await;
+    assert_eq!(st, StatusCode::OK);
+    let (_, v, _) = c.call("GET", &format!("/employees/{id}/vacation?stichtag=2026-09-01"), None).await;
+    assert_eq!(v["eintraege"].as_array().unwrap().len(), 3, "manueller Eintrag bleibt erhalten: {v}");
+    assert_eq!(v["korrektur"], -4.0);
+    // „Zeiterfassung ab“ nach vorne verlegt: die erneute Erstanlage ersetzt auch die Buchungen im alten Jahr
+    let (_, e, _) = c.call("GET", &format!("/employees/{id}"), None).await;
+    let mut upd = e["employee"].clone();
+    upd["durchrechnung_start"] = json!("2025-07-01");
+    let (st, r, _) = c.call("PUT", &format!("/employees/{id}"), Some(upd)).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    let (st, r, _) = c.call("POST", &format!("/employees/{id}/vacation/opening"), Some(json!({"rest_tage": 30}))).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    assert_eq!(r["urlaubsjahr"], "2025-01-01");
+    let (_, v, _) = c.call("GET", &format!("/employees/{id}/vacation?stichtag=2026-09-01"), None).await;
+    // 2025: Rest 30 zum 01.07. = Übertrag 5 + Anspruch 25, nichts verbraucht → 30 ins Jahr 2026;
+    // 2026: 30 + Anspruch 25 + manuelle Korrektur 1 = 56. Die alte Erstanlage in 2026 ist entfernt.
+    assert_eq!(v["uebertrag"], 30.0, "alte Erstanlage in 2026 darf den Übertrag nicht übersteuern: {v}");
+    assert_eq!(v["rest"], 56.0, "{v}");
+    assert_eq!(v["eintraege"].as_array().unwrap().len(), 1, "nur der manuelle Eintrag bleibt in 2026: {v}");
+    assert_eq!(v["historie"].as_array().unwrap().len(), 1);
+    assert_eq!(v["historie"][0]["uebertrag"], 5.0);
+}
+
+#[tokio::test]
+async fn resturlaub_ungueltig_legt_keinen_mitarbeiter_an() {
+    let mut c = Client::new().await;
+    c.login("admin", "admin-test").await;
+    let req = json!({
+        "personalnr": "14", "vorname": "Zu", "nachname": "Viel", "username": "zuviel",
+        "eintritt": "2020-01-01", "durchrechnung_start": "2026-01-01", "urlaubsanspruch_tage": 25,
+        "wochenmodell": [8, 8, 8, 8, 8, 0, 0], "resturlaub_start": 400
+    });
+    let (st, r, _) = c.call("POST", "/employees", Some(req.clone())).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST, "{r}");
+    let (_, list, _) = c.call("GET", "/employees", None).await;
+    assert!(!list.as_array().unwrap().iter().any(|e| e["username"] == "zuviel"), "kein halb angelegter Mitarbeiter: {list}");
+    // Mit gültigem Wert klappt die Anlage danach ohne Konflikt
+    let mut ok = req;
+    ok["resturlaub_start"] = json!(12.5);
+    let (st, r, _) = c.call("POST", "/employees", Some(ok)).await;
+    assert_eq!(st, StatusCode::OK, "{r}");
+    let id = r["employee"]["id"].as_i64().unwrap();
+    let (_, v, _) = c.call("GET", &format!("/employees/{id}/vacation?stichtag=2026-09-01"), None).await;
+    assert_eq!(v["uebertrag_offen"], false);
+    assert_eq!(v["rest"], 12.5);
+    assert_eq!(v["korrektur"], -12.5);
 }
 
 #[tokio::test]

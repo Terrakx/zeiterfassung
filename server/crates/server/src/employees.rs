@@ -98,6 +98,9 @@ fn validate(req: &EmployeeReq) -> ApiResult<()> {
             return Err(bad("Gutstundentopf muss ein NLZ-Kennzeichen 3xx sein"));
         }
     }
+    if let Some(r) = req.resturlaub_start {
+        crate::absences::validate_opening_balance(r)?;
+    }
     Ok(())
 }
 
@@ -152,12 +155,17 @@ async fn create(
     let id = res.last_insert_rowid();
     let hours = req.wochenmodell.unwrap_or([8.0, 8.0, 8.0, 8.0, 8.0, 0.0, 0.0]);
     insert_schedule(&mut tx, id, &req.eintritt, hours, false).await?;
-    // Urlaubsanspruch für das laufende Urlaubsjahr anlegen
+    // Resturlaub zum Erfassungsbeginn in derselben Transaktion buchen: schlägt das fehl,
+    // bleibt kein halb angelegter Mitarbeiter zurück.
+    let e = sqlx::query_as::<_, Employee>("SELECT * FROM employees WHERE id = ?").bind(id).fetch_one(&mut *tx).await?;
+    let opening = match req.resturlaub_start {
+        Some(rest) => Some(crate::absences::book_opening_balance(&mut tx, &e, admin.id, rest).await?),
+        None => None,
+    };
     tx.commit().await?;
     db::audit(&state.db, Some(admin.id), "mitarbeiter_angelegt", Some(format!("employee:{id}")), None, Some(json!({"personalnr": req.personalnr}))).await?;
-    let e = db::get_employee(&state.db, id).await?;
-    if let Some(rest) = req.resturlaub_start {
-        crate::absences::set_opening_balance(&state.db, &e, admin.id, rest).await?;
+    if let Some(o) = opening {
+        crate::absences::audit_opening_balance(&state.db, &e, admin.id, &o).await?;
     }
     Ok(Json(json!({ "employee": e })))
 }

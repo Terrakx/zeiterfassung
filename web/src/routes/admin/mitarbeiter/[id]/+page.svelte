@@ -21,7 +21,8 @@
   let absences = $state<any[]>([]);
   let vacation = $state<any>(null);
   let ve = $state({ urlaubsjahr: '', art: 'korrektur', tage: 0, grund: '' });
-  let opening = $state<{ rest_tage: number | '' }>({ rest_tage: '' });
+  // Ein geleertes Zahlenfeld liefert in Svelte 5 null, nicht ''.
+  let opening = $state<{ rest_tage: number | '' | null }>({ rest_tage: '' });
   let openingMsg = $state('');
   let credit = $state<any>(null);
   let ce = $state({ datum: todayIso(), topf: 307, minuten: 0, art: 'korrektur', grund: '' });
@@ -98,7 +99,7 @@
   }
   async function setOpening(e: Event) {
     e.preventDefault(); error = ''; openingMsg = '';
-    if (opening.rest_tage === '') { error = 'Bitte den Resturlaub in Tagen angeben (0 = voll verbraucht).'; return; }
+    if (opening.rest_tage === '' || opening.rest_tage == null) { error = 'Bitte den Resturlaub in Tagen angeben (0 = voll verbraucht).'; return; }
     try {
       const r: any = await api.post(`/employees/${id}/vacation/opening`, { rest_tage: Number(opening.rest_tage) });
       openingMsg = `Gebucht zum ${dateDe(r.stichtag)}: Übertrag aus Vorjahren ${days(r.uebertrag)} Tage` + (r.korrektur < 0 ? `, Korrektur laufendes Jahr ${days(r.korrektur)} Tage` : '') + ` (Anspruch ${days(r.anspruch)}).`;
@@ -284,6 +285,7 @@
       </div>
       <div>
       {#if vacation.uebertrag_offen}<div class="alert warn">Resturlaub zum Erfassungsbeginn ({dateDe(vacation.erfassung_ab)}) ist noch nicht erfasst. Vorjahre vor dem Erfassungsbeginn werden mit 0 angenommen.</div>{/if}
+      {#if vacation.eintraege_vor_erfassung}<div class="alert warn">{vacation.eintraege_vor_erfassung} {vacation.eintraege_vor_erfassung === 1 ? 'Eintrag liegt' : 'Einträge liegen'} in Urlaubsjahren vor dem Erfassungsbeginn ({dateDe(vacation.erfassung_ab)}) und {vacation.eintraege_vor_erfassung === 1 ? 'wird' : 'werden'} nicht berücksichtigt. Den Stand stattdessen über die Erstanlage erfassen.</div>{/if}
       {#if openingMsg}<div class="alert ok">{openingMsg}</div>{/if}
       <form class="card" style="margin:0 0 16px" onsubmit={setOpening}>
         <div class="card-title">Erstanlage: Resturlaub zum Erfassungsbeginn</div>

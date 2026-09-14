@@ -1,0 +1,15 @@
+% Gemeinsamer Kopf: Logo bzw. Initiale, Firma, Untertitel; rechts Titel und zweite Zeile.
+% Erwartet: logo, initial, firmenname, `untertitel`, `titel`, `titel_zeile2`.
+% ===== Kopf =====
+\begin{minipage}[b]{0.6\textwidth}
+\begin{tabular}{@{}l@{\hspace{3mm}}l@{}}
+{% if logo %}\includegraphics[height=9mm]{ {{- logo -}} }{% else %}{\setlength{\fboxsep}{0pt}\colorbox{primary}{\parbox[c][9mm][c]{9mm}{\centering\color{white}\bfseries\fs{12}{12}{{ initial }}}}}{% endif %} &
+\begin{tabular}[c]{@{}l@{}}{\fs{12}{14}\bfseries {{ firmenname }}}\\[0.5mm]{\fs{8}{10}\color{muted}{{ untertitel }}}\end{tabular}
+\end{tabular}
+\end{minipage}\hfill
+\begin{minipage}[b]{0.38\textwidth}\raggedleft
+{\fs{16}{17}\bfseries {{ titel }}}\\[1.5mm]
+{\fs{11}{13}{{ titel_zeile2 }}}
+\end{minipage}
+
+\vspace{3mm}{\color{ink}\rule{\textwidth}{1.2pt}}

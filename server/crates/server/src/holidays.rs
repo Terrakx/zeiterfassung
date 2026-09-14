@@ -34,6 +34,15 @@ pub async fn for_year(db: &SqlitePool, year: i32) -> ApiResult<Vec<Holiday>> {
     Ok(out)
 }
 
+/// Name des Feiertags an einem Tag; betriebliche Einträge übersteuern die gesetzlichen.
+pub async fn name_on(db: &SqlitePool, date: chrono::NaiveDate) -> ApiResult<Option<String>> {
+    let custom: Option<String> = sqlx::query_scalar("SELECT name FROM custom_holidays WHERE datum = ?")
+        .bind(time::fmt_date(date))
+        .fetch_optional(db)
+        .await?;
+    Ok(custom.or_else(|| austrian_holidays(chrono::Datelike::year(&date)).into_iter().find(|h| h.date == date).map(|h| h.name)))
+}
+
 #[derive(Deserialize)]
 struct YearQuery {
     jahr: Option<i32>,

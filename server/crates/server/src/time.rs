@@ -11,6 +11,11 @@ pub fn to_local(utc: DateTime<Utc>) -> NaiveDateTime {
     utc.with_timezone(&Vienna).naive_local()
 }
 
+/// Uhrzeit „HH:MM“ (Einstellungen, Gleitzeitrahmen, Stempelfenster).
+pub fn parse_hm(s: &str) -> Option<chrono::NaiveTime> {
+    chrono::NaiveTime::parse_from_str(s.trim(), "%H:%M").ok()
+}
+
 pub fn local_to_utc(local: NaiveDateTime) -> DateTime<Utc> {
     // Bei Zeitumstellung: erste Variante nehmen (Herbst) bzw. nächste gültige (Frühling).
     match Vienna.from_local_datetime(&local) {

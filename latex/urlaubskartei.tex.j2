@@ -1,55 +1,11 @@
-\documentclass[a4paper,9pt]{extarticle}
-\usepackage[a4paper,left=16mm,right=16mm,top=14mm,bottom=16mm,footskip=7mm]{geometry}
-\usepackage{fontspec}
-\IfFontExistsTF{IBM Plex Sans}{\setmainfont{IBM Plex Sans}[Numbers=Monospaced]}{\setmainfont{Latin Modern Sans}}
-\usepackage[table]{xcolor}
-\usepackage{longtable,booktabs,array,graphicx,fancyhdr,lastpage,tabularx}
-\usepackage[german]{babel}
-\definecolor{primary}{HTML}{ {{- primary_hex -}} }
-\definecolor{ink}{HTML}{1C1F22}
-\definecolor{muted}{HTML}{6B7176}
-\definecolor{head}{HTML}{4A5055}
-\definecolor{light}{HTML}{8A9096}
-\definecolor{line}{HTML}{E2E4E6}
-\definecolor{border}{HTML}{C9CDD0}
-\definecolor{tint}{HTML}{EEF3F6}
-\definecolor{notebg}{HTML}{FFF7E0}
-\definecolor{noteline}{HTML}{F1DC9A}
-\definecolor{notefg}{HTML}{6B4A06}
-\definecolor{ok}{HTML}{2E7D4F}
-\definecolor{err}{HTML}{B3261E}
-\color{ink}
-{% raw %}
-\newcommand{\fs}[2]{\fontsize{#1}{#2}\selectfont}
-\newcommand{\metalabel}[1]{\leavevmode{\fs{7.5}{9}\color{muted}\addfontfeature{LetterSpace=6}\MakeUppercase{#1}}}
-\newcommand{\sectlabel}[1]{\leavevmode{\fs{8}{10}\bfseries\color{head}\addfontfeature{LetterSpace=6}\MakeUppercase{#1}}\par\vspace{2mm}}
-\newcommand{\thead}[1]{\leavevmode{\fs{7.5}{9}\color{head}#1}}
-{% endraw %}
-\pagestyle{fancy}
-\fancyhf{}
-\renewcommand{\headrulewidth}{0pt}
-\renewcommand{\footrulewidth}{0.3pt}
-\renewcommand{\footrule}{\hbox to\headwidth{\color{line}\leaders\hrule height \footrulewidth\hfill}}
-\lfoot{\fs{7.5}{9}\color{light}{{ fusszeile }}}
-\rfoot{\fs{7.5}{9}\color{light}Urlaubskartei {{ urlaubsjahr }} · Nr.\,{{ personalnr }} · Seite \thepage/\pageref{LastPage}}
-\setlength{\parindent}{0pt}
-\setlength{\LTleft}{0pt}\setlength{\LTright}{0pt}\setlength{\LTpre}{0pt}\setlength{\LTpost}{0pt}
-\setlength{\arrayrulewidth}{0.3pt}
+{% set fuss = "Urlaubskartei " ~ urlaubsjahr %}
+{% include "praeambel" %}
 \begin{document}
 
-% ===== Kopf =====
-\begin{minipage}[b]{0.6\textwidth}
-\begin{tabular}{@{}l@{\hspace{3mm}}l@{}}
-{% if logo %}\includegraphics[height=9mm]{ {{- logo -}} }{% else %}{\setlength{\fboxsep}{0pt}\colorbox{primary}{\parbox[c][9mm][c]{9mm}{\centering\color{white}\bfseries\fs{12}{12}{{ initial }}}}}{% endif %} &
-\begin{tabular}[c]{@{}l@{}}{\fs{12}{14}\bfseries {{ firmenname }}}\\[0.5mm]{\fs{8}{10}\color{muted}Urlaubsaufzeichnung nach §\,8 UrlG}\end{tabular}
-\end{tabular}
-\end{minipage}\hfill
-\begin{minipage}[b]{0.38\textwidth}\raggedleft
-{\fs{16}{17}\bfseries Urlaubskartei}\\[1.5mm]
-{\fs{11}{13}Urlaubsjahr {{ urlaubsjahr }}}
-\end{minipage}
-
-\vspace{3mm}{\color{ink}\rule{\textwidth}{1.2pt}}
+{% set untertitel = "Urlaubsaufzeichnung nach §\\,8 UrlG" %}
+{% set titel = "Urlaubskartei" %}
+{% set titel_zeile2 = "Urlaubsjahr " ~ urlaubsjahr %}
+{% include "kopf" %}
 
 \vspace{4mm}
 % ===== Stammdaten =====
@@ -95,13 +51,14 @@ Geplant (genehmigt) & {{ geplant }}\\\hline
 \vspace{7mm}
 % ===== Buchungen =====
 \sectlabel{Buchungen {{ urlaubsjahr }}}
+% Feste Breiten: 17+24+44+11+11+51 = 158 mm + 5 Zwischenräume × 2 × 2 mm (@{} außen) = 178 mm Textbreite
 {\fs{8.5}{11}\renewcommand{\arraystretch}{1.25}\setlength{\tabcolsep}{2mm}
-\begin{longtable}{@{}l >{\raggedright\arraybackslash}p{26mm} >{\raggedright\arraybackslash}p{50mm} r r >{\leavevmode\raggedright\arraybackslash\fs{7.5}{9}\color{muted}}p{54mm}@{}}
+\begin{longtable}{@{}L{17mm}L{24mm}L{44mm}R{11mm}R{11mm}>{\leavevmode\raggedright\arraybackslash\fs{7.5}{9}\color{muted}}p{51mm}@{}}
 \arrayrulecolor{ink}\specialrule{0.8pt}{0pt}{0pt}
-\thead{Datum} & \multicolumn{1}{l}{\thead{Art}} & \multicolumn{1}{l}{\thead{Zeitraum / Bezug}} & \thead{Tage} & \thead{Rest} & \multicolumn{1}{l}{\thead{Bemerkung}}\\
+\thead{Datum} & \thead{Art} & \thead{Zeitraum / Bezug} & \thead{Tage} & \thead{Rest} & \thead{Bemerkung}\\
 \specialrule{0.8pt}{0pt}{0pt}
 \endhead
-{% for b in buchungen %}{{ b.datum }} & {{ b.art }} & {{ b.bezug }} & {% if b.neg %}\color{err}{% elif b.null %}\color{muted}{% endif %}{{ b.tage }} & {{ b.rest }} & {{ b.bem }}\\\arrayrulecolor{line}\hline
+{% for b in buchungen %}{{ b.datum }} & {{ b.art }} & {{ b.bezug }} & {% if b.neg %}\textcolor{err}{ {{- b.tage -}} }{% elif b.null %}\textcolor{muted}{ {{- b.tage -}} }{% else %}{{ b.tage }}{% endif %} & {{ b.rest }} & {{ b.bem }}\\\arrayrulecolor{line}\hline
 {% endfor %}
 {% if not buchungen %}\multicolumn{6}{@{}l}{\color{muted}Keine Buchungen.}\\\arrayrulecolor{line}\hline{% endif %}
 \end{longtable}}
@@ -123,13 +80,7 @@ Geplant (genehmigt) & {{ geplant }}\\\hline
 {\fs{7.5}{9}\color{muted}Stand {{ stichtag }} · Erstellt am {{ erstellt_am }} · Angaben in Arbeitstagen laut Wochenmodell, Feiertage zählen nicht · Verbrauch nach dem ältesten Anspruch zuerst · Verjährung gemäß §\,4 Abs\,5 UrlG frühestens zwei Jahre nach Ende des Urlaubsjahres, nur nach Aufforderung und Belehrung (EuGH C-619/16, C-684/16)\par}
 
 \vfill
-% ===== Unterschriften =====
 \vspace{8mm}
-{\setlength{\tabcolsep}{0pt}\arrayrulecolor{ink}\setlength{\arrayrulewidth}{0.4pt}
-\begin{tabularx}{\textwidth}{@{}X@{\hspace{12mm}}X@{}}
-\rule{0pt}{14mm} & \rule{0pt}{14mm}\\
-\cline{1-1}\cline{2-2}
-\rule{0pt}{4mm}{\fs{8}{10}Datum, Unterschrift {{ unterschrift_1 }}} & \rule{0pt}{4mm}{\fs{8}{10}Datum, Unterschrift {{ unterschrift_2 }}}\\
-\end{tabularx}}
+{% include "unterschriften" %}
 
 \end{document}

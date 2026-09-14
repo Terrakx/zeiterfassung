@@ -341,6 +341,13 @@ pub fn vacation_year_start(emp: &Employee, date: NaiveDate) -> NaiveDate {
     }
 }
 
+/// Verjährung eines Anspruchs nach § 4 Abs 5 UrlG: Ende des zweiten Urlaubsjahres nach dem, in dem er entstand.
+fn expiry_date(emp: &Employee, bucket_start: NaiveDate) -> NaiveDate {
+    let e1 = next_year_start(emp, bucket_start);
+    let e2 = next_year_start(emp, e1);
+    next_year_start(emp, e2) - Duration::days(1)
+}
+
 fn next_year_start(emp: &Employee, start: NaiveDate) -> NaiveDate {
     vacation_year_start(emp, NaiveDate::from_ymd_opt(start.year() + 1, start.month(), start.day().min(28)).unwrap())
 }
@@ -418,9 +425,13 @@ pub async fn vacation_account(db: &SqlitePool, emp: &Employee, as_of: NaiveDate)
     // Urlaubsjahr, in dem die Zeiterfassung beginnt: Vorjahre davor sind nicht erfasst und zählen nur
     // über einen expliziten Übertrag (Resturlaub bei Erstanlage). Ohne Übertrag gilt 0.
     let erfassung_ab = time::parse_date(&emp.durchrechnung_start).unwrap_or(eintritt);
-    let start_year = vacation_year_start(emp, erfassung_ab.max(eintritt));
+    let start_year = vacation_year_start(emp, calc::saldo_start(emp)?);
+    let eintritt_year = vacation_year_start(emp, eintritt);
+    // Die Durchrechnung beginnt frühestens im Erfassungsjahr; liegt der Stichtag davor, ist auch dort
+    // nichts erfasst. Frühere Jahre werden nicht durchgerechnet – ihr Ergebnis würde ohnehin verworfen.
+    let first_year = start_year.min(target_year);
     let mut uebertrag_offen = false;
-    let mut year = vacation_year_start(emp, eintritt);
+    let mut year = first_year;
     let entries = sqlx::query_as::<_, (i64, String, String, f64, Option<String>, String)>(
         "SELECT id, urlaubsjahr, art, tage, grund, created_at FROM vacation_entries WHERE employee_id = ? ORDER BY urlaubsjahr, id",
     )
@@ -441,8 +452,8 @@ pub async fn vacation_account(db: &SqlitePool, emp: &Employee, as_of: NaiveDate)
             if u > 0.0 {
                 buckets.push((vacation_year_start(emp, year - Duration::days(1)), u));
             }
-        } else if year == start_year && year > vacation_year_start(emp, eintritt) {
-            buckets.clear();
+        } else if year == first_year && year > eintritt_year {
+            // Erstes durchgerechnetes Jahr ohne Erstanlage: Vorjahre gelten als 0, bis der Resturlaub erfasst ist.
             uebertrag_offen = true;
         }
         let uebertrag: f64 = buckets.iter().map(|b| b.1).sum();
@@ -469,13 +480,11 @@ pub async fn vacation_account(db: &SqlitePool, emp: &Employee, as_of: NaiveDate)
         }
         let ueberzogen = rest_consume.max(0.0);
         buckets.retain(|b| b.1 > 1e-9);
-        // Verfall am Jahresende: Ansprüche, deren Urlaubsjahr zwei volle Jahre zurückliegt
+        // Verfall am Jahresende: Ansprüche, deren Verjährungsdatum in diesem Jahr liegt
         let mut verfall_auto = 0.0;
         let year_over = year_end < as_of;
         if s.urlaub_verfall_auto && year_over {
-            let cutoff = vacation_year_start(emp, year - Duration::days(1)); // Beginn des Vorjahres
-            let cutoff = vacation_year_start(emp, cutoff - Duration::days(1)); // Beginn des Vor-Vorjahres
-            let (expired, keep): (Vec<_>, Vec<_>) = buckets.iter().cloned().partition(|b| b.0 <= cutoff);
+            let (expired, keep): (Vec<_>, Vec<_>) = buckets.iter().cloned().partition(|b| expiry_date(emp, b.0) <= year_end);
             verfall_auto = expired.iter().map(|b| b.1).sum();
             buckets = keep;
         }
@@ -495,18 +504,14 @@ pub async fn vacation_account(db: &SqlitePool, emp: &Employee, as_of: NaiveDate)
         });
         if year == target_year {
             let (verbrauch_bis_stichtag, _) = consumed_days(db, emp, year, as_of).await?;
-            // Verfall eines Anspruchs: zwei Jahre nach Ende des Urlaubsjahres, in dem er entstand
-            let expiry_of = |start: NaiveDate| {
-                let e1 = next_year_start(emp, start);
-                let e2 = next_year_start(emp, e1);
-                let e3 = next_year_start(emp, e2);
-                time::fmt_date(e3 - Duration::days(1))
-            };
+            let expiry_of = |start: NaiveDate| time::fmt_date(expiry_date(emp, start));
             // Nächster Verfall: ältester offener Anspruch
             let next_expiry = buckets.first().map(|b| json!({"tage": b.1, "am": expiry_of(b.0), "aus_urlaubsjahr": time::fmt_date(b.0)}));
             let mut r = year_json.clone();
             r["verbrauch_bis_stichtag"] = json!(verbrauch_bis_stichtag);
             r["geplant"] = json!(verbrauch - verbrauch_bis_stichtag);
+            // Rest ohne die bereits genehmigten, noch nicht angetretenen Tage
+            r["rest_gesamt"] = json!(rest + (verbrauch - verbrauch_bis_stichtag));
             r["einheit"] = json!("tage");
             r["buchungen"] = json!(list);
             r["eintraege"] = json!(year_entries.iter().map(|e| json!({"id": e.0, "art": e.2, "tage": e.3, "grund": e.4, "created_at": e.5})).collect::<Vec<_>>());
@@ -515,6 +520,8 @@ pub async fn vacation_account(db: &SqlitePool, emp: &Employee, as_of: NaiveDate)
             r["verfall_auto_aktiv"] = json!(s.urlaub_verfall_auto);
             r["erfassung_ab"] = json!(time::fmt_date(erfassung_ab));
             r["uebertrag_offen"] = json!(uebertrag_offen);
+            // Einträge in Urlaubsjahren vor dem Erfassungsbeginn fließen nicht ein; die Verwaltung soll das sehen.
+            r["eintraege_vor_erfassung"] = json!(entries.iter().filter(|e| time::parse_date(&e.1).map(|d| d < start_year).unwrap_or(false)).count());
             r["historie"] = json!(history);
             result = r;
             break;
@@ -644,44 +651,58 @@ pub struct OpeningReq {
     pub rest_tage: f64,
 }
 
-/// Resturlaub bei Erstanlage: setzt den Stand zum Erfassungsbeginn („Zeiterfassung ab“) als Übertrag
-/// des Vorjahres; liegt der Rest unter dem Anspruch des laufenden Urlaubsjahres, wird die Differenz
-/// als Korrektur gebucht (Verbrauch vor Erfassungsbeginn). Ersetzt eine frühere Erstanlage-Buchung.
-pub async fn set_opening_balance(db: &SqlitePool, emp: &Employee, admin_id: i64, rest_tage: f64) -> ApiResult<Value> {
-    if rest_tage < 0.0 || rest_tage > 365.0 {
+/// Wertebereich des Resturlaubs bei Erstanlage; wird auch vor dem Anlegen eines Mitarbeiters geprüft.
+pub fn validate_opening_balance(rest_tage: f64) -> ApiResult<()> {
+    if !rest_tage.is_finite() || rest_tage < 0.0 || rest_tage > 365.0 {
         return Err(bad("Resturlaub muss zwischen 0 und 365 Tagen liegen"));
     }
+    Ok(())
+}
+
+/// Resturlaub bei Erstanlage: setzt den Stand zum Erfassungsbeginn („Zeiterfassung ab“) als Übertrag
+/// des Vorjahres; liegt der Rest unter dem Anspruch des laufenden Urlaubsjahres, wird die Differenz
+/// als Korrektur gebucht (Verbrauch vor Erfassungsbeginn). Ersetzt alle früheren Erstanlage-Buchungen
+/// des Mitarbeiters – auch in anderen Urlaubsjahren, falls „Zeiterfassung ab“ inzwischen geändert wurde.
+/// Läuft in der übergebenen Transaktion, damit die Anlage eines Mitarbeiters atomar bleibt.
+pub async fn book_opening_balance(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, emp: &Employee, admin_id: i64, rest_tage: f64) -> ApiResult<Value> {
+    validate_opening_balance(rest_tage)?;
     let eintritt = time::parse_date(&emp.eintritt).ok_or_else(|| bad("Eintritt ungültig"))?;
-    let stichtag = time::parse_date(&emp.durchrechnung_start).unwrap_or(eintritt).max(eintritt);
+    let stichtag = calc::saldo_start(emp)?;
     let year = vacation_year_start(emp, stichtag);
     let year_end = next_year_start(emp, year) - Duration::days(1);
     let ys = time::fmt_date(year);
     let explicit: Option<f64> = sqlx::query_scalar(
-        "SELECT tage FROM vacation_entries WHERE employee_id = ? AND urlaubsjahr = ? AND art = 'anspruch' ORDER BY id DESC LIMIT 1",
+        "SELECT tage FROM vacation_entries WHERE employee_id = ? AND urlaubsjahr = ? AND art = 'anspruch' AND erstanlage = 0 ORDER BY id DESC LIMIT 1",
     )
-    .bind(emp.id).bind(&ys).fetch_optional(db).await?;
+    .bind(emp.id).bind(&ys).fetch_optional(&mut **tx).await?;
     let anspruch = entitlement_for(emp, eintritt, year, year_end, explicit);
     let delta = rest_tage - anspruch;
-    let grund = format!("Erstanlage: Resturlaub {} Tage zum {}", fmt_days_de(rest_tage), time::fmt_date_de(stichtag));
-    let mut tx = db.begin().await?;
-    sqlx::query("DELETE FROM vacation_entries WHERE employee_id = ? AND urlaubsjahr = ? AND grund LIKE 'Erstanlage:%'")
-        .bind(emp.id).bind(&ys).execute(&mut *tx).await?;
-    sqlx::query("INSERT INTO vacation_entries (employee_id, urlaubsjahr, art, tage, grund, erfasst_von) VALUES (?,?,?,?,?,?)")
+    let grund = format!("Erstanlage: Resturlaub {} Tage zum {}", crate::reports::fmt_days(rest_tage), time::fmt_date_de(stichtag));
+    sqlx::query("DELETE FROM vacation_entries WHERE employee_id = ? AND erstanlage = 1")
+        .bind(emp.id).execute(&mut **tx).await?;
+    sqlx::query("INSERT INTO vacation_entries (employee_id, urlaubsjahr, art, tage, grund, erfasst_von, erstanlage) VALUES (?,?,?,?,?,?,1)")
         .bind(emp.id).bind(&ys).bind("uebertrag").bind(delta.max(0.0)).bind(&grund).bind(admin_id)
-        .execute(&mut *tx).await?;
+        .execute(&mut **tx).await?;
     if delta < 0.0 {
-        sqlx::query("INSERT INTO vacation_entries (employee_id, urlaubsjahr, art, tage, grund, erfasst_von) VALUES (?,?,?,?,?,?)")
+        sqlx::query("INSERT INTO vacation_entries (employee_id, urlaubsjahr, art, tage, grund, erfasst_von, erstanlage) VALUES (?,?,?,?,?,?,1)")
             .bind(emp.id).bind(&ys).bind("korrektur").bind(delta).bind(&grund).bind(admin_id)
-            .execute(&mut *tx).await?;
+            .execute(&mut **tx).await?;
     }
-    tx.commit().await?;
-    db::audit(db, Some(admin_id), "urlaub_erstanlage", Some(format!("employee:{}", emp.id)), None,
-        Some(json!({"rest_tage": rest_tage, "stichtag": time::fmt_date(stichtag), "urlaubsjahr": ys, "anspruch": anspruch}))).await?;
-    Ok(json!({"urlaubsjahr": ys, "stichtag": time::fmt_date(stichtag), "anspruch": anspruch, "uebertrag": delta.max(0.0), "korrektur": delta.min(0.0)}))
+    Ok(json!({"rest_tage": rest_tage, "urlaubsjahr": ys, "stichtag": time::fmt_date(stichtag), "anspruch": anspruch, "uebertrag": delta.max(0.0), "korrektur": delta.min(0.0)}))
 }
 
-fn fmt_days_de(d: f64) -> String {
-    if (d - d.round()).abs() < 1e-9 { format!("{}", d.round() as i64) } else { format!("{d:.1}").replace('.', ",") }
+pub async fn audit_opening_balance(db: &SqlitePool, emp: &Employee, admin_id: i64, booked: &Value) -> ApiResult<()> {
+    db::audit(db, Some(admin_id), "urlaub_erstanlage", Some(format!("employee:{}", emp.id)), None,
+        Some(json!({"rest_tage": booked["rest_tage"], "stichtag": booked["stichtag"], "urlaubsjahr": booked["urlaubsjahr"], "anspruch": booked["anspruch"]}))).await
+}
+
+/// Erstanlage als eigene Transaktion buchen und protokollieren.
+pub async fn set_opening_balance(db: &SqlitePool, emp: &Employee, admin_id: i64, rest_tage: f64) -> ApiResult<Value> {
+    let mut tx = db.begin().await?;
+    let booked = book_opening_balance(&mut tx, emp, admin_id, rest_tage).await?;
+    tx.commit().await?;
+    audit_opening_balance(db, emp, admin_id, &booked).await?;
+    Ok(booked)
 }
 
 async fn vacation_opening(State(state): State<AppState>, AdminUser(admin): AdminUser, Path(id): Path<i64>, Json(req): Json<OpeningReq>) -> ApiResult<Json<Value>> {

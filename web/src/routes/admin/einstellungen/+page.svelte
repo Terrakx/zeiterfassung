@@ -74,7 +74,7 @@
         <div class="field"><label for="sb">Stempelfenster bis</label><input id="sb" type="time" bind:value={s.stempeln_bis} /></div>
       </div>
       <p class="small muted">Die Sperren betreffen nur „Kommen“ über Portal und Terminal; Gehen und Pause bleiben immer möglich, damit eine Schicht beendet werden kann. Nachträge und Korrekturen durch die Verwaltung sind weiterhin erlaubt. Stempelfenster leer lassen = keine zeitliche Einschränkung; liegt „bis“ vor „von“, gilt das Fenster über Mitternacht (Nachtbetrieb).</p>
-      <p class="small muted">Nachtarbeit nach § 12a AZG ist Arbeit zwischen 22:00 und 05:00 Uhr. Soll kein Kommen in der Nacht möglich sein, Stempelfenster 05:00 bis 22:00 eintragen. Wer vor 22:00 kommt und länger bleibt, kann trotzdem in die Nachtzeit hineinarbeiten – das zeigt der Arbeitszeitnachweis über die Hinweise zu Tagesarbeitszeit und Ruhezeit.</p>
+      <p class="small muted">Nachtarbeit nach § 12a AZG ist Arbeit zwischen 22:00 und 05:00 Uhr. Soll kein Kommen in der Nacht möglich sein, Stempelfenster 05:00 bis 22:00 eintragen. Wer vor 22:00 kommt und länger bleibt, kann trotzdem in die Nachtzeit hineinarbeiten – das zeigen die Hinweise zu Tagesarbeitszeit und Ruhezeit im Portal und beim Monatsabschluss; der Arbeitszeitnachweis (PDF) enthält keine Hinweise.</p>
     </div>
     <div class="card">
       <div class="card-title">Urlaub</div>

@@ -123,7 +123,7 @@
       </div>
       <div class="actions">
         {#if status.zustand === 'draussen' && status.sperre}
-          <div class="t-block">{status.sperre} Bitte an die Verwaltung wenden.</div>
+          <div class="t-block">{status.sperre}</div>
         {:else if status.zustand === 'draussen'}
           <button class="primary" style="grid-column:1 / -1" onclick={() => punch('kommen')} disabled={busy}>Kommen</button>
         {:else if status.zustand === 'arbeitet'}

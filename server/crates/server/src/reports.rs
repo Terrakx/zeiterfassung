@@ -1,6 +1,6 @@
 //! Monatsabschluss und PDF-Berichte (LaTeX).
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use axum::{
     body::Body,
@@ -93,10 +93,10 @@ async fn year_pdf(State(state): State<AppState>, AdminUser(_): AdminUser, AxPath
             "urlaub": fmt_days(y.urlaub_rest),
         }));
     }
-    let mut ctx = base_ctx(&state.data_dir, &s);
+    let mut ctx = base_ctx(&s);
     ctx.insert("jahr".into(), json!(jahr));
     ctx.insert("rows".into(), json!(rows));
-    let bytes = render_template(&state.data_dir, TEMPLATE_JAHR, &Value::Object(ctx)).await?;
+    let bytes = render_template(&state.data_dir, TEMPLATE_JAHR, ctx).await?;
     Ok(pdf_response(bytes, &format!("Jahresuebersicht_{jahr}.pdf")))
 }
 
@@ -359,6 +359,8 @@ fn signed(min: i32) -> String {
 pub async fn render_month_pdf(db: &SqlitePool, data_dir: &Path, s: &Settings, emp: &Employee, mv: &MonthView, vorschau: bool) -> ApiResult<Vec<u8>> {
     let (from, to) = calc::month_range(&mv.monat)?;
     let labels = schedule_labels(db, emp, to).await?;
+    // Farbname für vorzeichenbehaftete Werte (Tageszeilen, Summe, Kennzahlen); das Template kennt nur den Namen.
+    let saldo_color = |min: i32| if min > 0 { "ok" } else if min < 0 { "err" } else { "ink" };
     let mut days = Vec::new();
     for d in &mv.days {
         let weekend = d.weekday == "Sa" || d.weekday == "So";
@@ -383,15 +385,16 @@ pub async fn render_month_pdf(db: &SqlitePool, data_dir: &Path, s: &Settings, em
             "ist": hm_or_empty(d.result.worked_min),
             "abwesenheit": tex(&abw.join(", ")),
             "diff": if diff_shown { signed(d.result.diff_min) } else { String::new() },
-            "diff_pos": diff_shown && d.result.diff_min > 0,
-            "diff_neg": diff_shown && d.result.diff_min < 0,
+            "diff_color": if diff_shown { saldo_color(d.result.diff_min) } else { "ink" },
         }));
     }
     let transferred = mv.saldo_start_min + mv.diff_min - mv.saldo_ende_min;
-    let saldo_color = |min: i32| if min > 0 { "ok" } else if min < 0 { "err" } else { "ink" };
+    // Bezahlte Nichtleistungszeit (Abwesenheiten und Feiertagsausfall) zählt wie im Jahresbericht zum
+    // Ist gesamt; nur so stimmt die Kennzahl mit Soll und Differenz überein.
+    let nichtleistung_min = mv.abwesenheit_min + mv.feiertag_min;
     let kpis = [
         ("Soll", time::fmt_hm(mv.soll_min), "ink"),
-        ("Ist gesamt", time::fmt_hm(mv.ist_min), "ink"),
+        ("Ist gesamt", time::fmt_hm(mv.ist_min + nichtleistung_min), "ink"),
         ("Differenz", signed(mv.diff_min), saldo_color(mv.diff_min)),
         ("Saldo Beginn", signed(mv.saldo_start_min), saldo_color(mv.saldo_start_min)),
         ("Saldo Ende", signed(mv.saldo_ende_min), saldo_color(mv.saldo_ende_min)),
@@ -423,9 +426,8 @@ pub async fn render_month_pdf(db: &SqlitePool, data_dir: &Path, s: &Settings, em
         konten.push(format!("Gutstunden Topf {} {}", p["topf"], signed(p["saldo_min"].as_i64().unwrap_or(0) as i32)));
     }
     let konten = if konten.is_empty() { None } else { Some(tex(&format!("Bezahlte Nichtleistungszeit {} · {}", time::fmt_hm(mv.abwesenheit_min), konten.join(" · ")))) };
-    let mut ctx = base_ctx(data_dir, s);
-    ctx.extend(
-        json!({
+    let mut ctx = base_ctx(s);
+    let Value::Object(extra) = json!({
             "mitarbeiter": tex(&emp.display_name()),
             "personalnr": tex(&emp.personalnr),
             "monat": &mv.monat,
@@ -441,58 +443,66 @@ pub async fn render_month_pdf(db: &SqlitePool, data_dir: &Path, s: &Settings, em
             "soll": time::fmt_hm(mv.soll_min),
             "ist": time::fmt_hm(mv.ist_min),
             "pause": hm_or_empty(mv.pause_min),
-            "abwesenheit": hm_or_empty(mv.abwesenheit_min),
+            "abwesenheit": hm_or_empty(nichtleistung_min),
             "diff": signed(mv.diff_min),
-            "diff_pos": mv.diff_min > 0,
-            "diff_neg": mv.diff_min < 0,
+            "diff_color": saldo_color(mv.diff_min),
             "konten": konten,
         })
-        .as_object()
-        .cloned()
-        .unwrap_or_default(),
-    );
-    render_template(data_dir, TEMPLATE, &Value::Object(ctx)).await
+    else {
+        unreachable!("json!-Objekt")
+    };
+    ctx.extend(extra);
+    render_template(data_dir, TEMPLATE, ctx).await
 }
 
-async fn render_template(data_dir: &Path, template: &str, ctx: &Value) -> ApiResult<Vec<u8>> {
-    // Eigenes Arbeitsverzeichnis je Lauf; das Logo wird hineinkopiert und nur mit seinem Dateinamen
-    // referenziert, damit weder relative Datenverzeichnisse noch Leerzeichen im Pfad LaTeX stören.
-    let dir = data_dir.join("tmp").join(format!("tex-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&dir).map_err(|e| anyhow::anyhow!(e))?;
-    let mut ctx = ctx.clone();
-    if let Some(src) = ctx["logo"].as_str().map(PathBuf::from) {
-        let name = format!("logo.{}", src.extension().and_then(|e| e.to_str()).unwrap_or("png"));
-        match std::fs::copy(&src, dir.join(&name)) {
-            Ok(_) => ctx["logo"] = json!(name),
-            Err(e) => {
-                tracing::warn!("Logo {} nicht kopierbar, PDF ohne Logo: {e}", src.display());
-                ctx["logo"] = Value::Null;
-            }
-        }
-    }
+/// Gemeinsame Bausteine der Hochformat-Berichte, per `{% include %}` eingebunden.
+const PARTIALS: [(&str, &str); 3] = [
+    ("praeambel", include_str!("../../../../latex/_praeambel.tex.j2")),
+    ("kopf", include_str!("../../../../latex/_kopf.tex.j2")),
+    ("unterschriften", include_str!("../../../../latex/_unterschriften.tex.j2")),
+];
+
+fn render_tex(template: &str, ctx: &serde_json::Map<String, Value>) -> ApiResult<String> {
     let mut env = minijinja::Environment::new();
     env.set_auto_escape_callback(|_| minijinja::AutoEscape::None);
+    for (name, src) in PARTIALS {
+        env.add_template(name, src).map_err(|e| anyhow::anyhow!("Template {name}: {e}"))?;
+    }
     env.add_template("m", template).map_err(|e| anyhow::anyhow!("Template: {e}"))?;
-    let tex_src = env.get_template("m").unwrap().render(&ctx).map_err(|e| anyhow::anyhow!("Template render: {e}"))?;
+    Ok(env.get_template("m").unwrap().render(ctx).map_err(|e| anyhow::anyhow!("Template render: {e}"))?)
+}
+
+async fn render_template(data_dir: &Path, template: &str, mut ctx: serde_json::Map<String, Value>) -> ApiResult<Vec<u8>> {
+    // Eigenes Arbeitsverzeichnis je Lauf; das Logo wird direkt hinein entschlüsselt und nur mit seinem
+    // Dateinamen referenziert, damit weder relative Datenverzeichnisse noch Leerzeichen im Pfad LaTeX
+    // stören und parallele Läufe sich keine Datei teilen.
+    let dir = data_dir.join("tmp").join(format!("tex-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).map_err(|e| anyhow::anyhow!(e))?;
+    let logo = ctx.remove("logo_data_url").and_then(|v| v.as_str().map(String::from)).and_then(|url| {
+        write_logo(&dir, &url).map_err(|e| tracing::warn!("Logo nicht verwendbar, PDF ohne Logo: {e}")).ok()
+    });
+    ctx.insert("logo".into(), json!(logo));
+    let tex_src = render_tex(template, &ctx)?;
     compile_latex(&dir, &tex_src).await
 }
 
-fn logo_for(data_dir: &Path, s: &Settings) -> Option<String> {
-    match &s.logo_data_url {
-        Some(url) if url.starts_with("data:image/png") || url.starts_with("data:image/jpeg") => {
-            decode_logo(data_dir, url).ok().map(|p| p.to_string_lossy().replace('\\', "/"))
-        }
-        _ => None,
-    }
+/// Logo aus der Data-URL in das Arbeitsverzeichnis schreiben; liefert den Dateinamen.
+fn write_logo(dir: &Path, url: &str) -> anyhow::Result<String> {
+    let (meta, b64) = url.split_once(',').ok_or_else(|| anyhow::anyhow!("keine Data-URL"))?;
+    let ext = if meta.contains("png") { "png" } else { "jpg" };
+    let name = format!("logo.{ext}");
+    std::fs::write(dir.join(&name), base64_decode(b64)?)?;
+    Ok(name)
 }
 
-fn base_ctx(data_dir: &Path, s: &Settings) -> serde_json::Map<String, Value> {
+fn base_ctx(s: &Settings) -> serde_json::Map<String, Value> {
     let mut m = serde_json::Map::new();
     m.insert("primary_hex".into(), json!(s.primaerfarbe.trim_start_matches('#').to_uppercase()));
     m.insert("firmenname".into(), json!(tex(&s.firmenname)));
     m.insert("fusszeile".into(), json!(tex(&s.fusszeile)));
     m.insert("erstellt_am".into(), json!(time::to_local(time::now_utc()).format("%d.%m.%Y %H:%M").to_string()));
-    m.insert("logo".into(), json!(logo_for(data_dir, s)));
+    let logo = s.logo_data_url.as_deref().filter(|u| u.starts_with("data:image/png") || u.starts_with("data:image/jpeg"));
+    m.insert("logo_data_url".into(), json!(logo));
     m.insert("initial".into(), json!(tex(&s.firmenname.trim().chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default())));
     m.insert("unterschrift_1".into(), json!(tex(&s.unterschrift_1)));
     m.insert("unterschrift_2".into(), json!(tex(&s.unterschrift_2)));
@@ -523,7 +533,7 @@ fn vacation_row(acct: &Value) -> serde_json::Map<String, Value> {
     m.insert("verbraucht".into(), json!(f("verbrauch_bis_stichtag")));
     m.insert("geplant".into(), json!(f("geplant")));
     m.insert("rest".into(), json!(f("rest")));
-    m.insert("rest_gesamt".into(), json!(fmt_days(acct["rest"].as_f64().unwrap_or(0.0) + acct["geplant"].as_f64().unwrap_or(0.0))));
+    m.insert("rest_gesamt".into(), json!(f("rest_gesamt")));
     m.insert("naechster_verfall".into(), json!(nv.map(|t| tex(&t))));
     m
 }
@@ -541,27 +551,41 @@ fn signed_days(d: f64) -> String {
     if d > 0.0 { format!("+{}", fmt_days(d)) } else if d < 0.0 { format!("−{}", fmt_days(-d)) } else { "–".into() }
 }
 
-/// Buchungen der Urlaubskartei als Kontoauszug mit laufendem Rest: Übertrag und Anspruch zu Jahresbeginn,
-/// danach Einträge der Verwaltung und Verbrauch chronologisch.
+/// Buchungen der Urlaubskartei als Kontoauszug mit laufendem Rest: Übertrag, Anspruch und Einträge der
+/// Verwaltung zu Jahresbeginn (so rechnet auch das Urlaubskonto), danach der Verbrauch chronologisch.
 fn vacation_ledger(acct: &Value, as_of: chrono::NaiveDate) -> Vec<Value> {
     let arr = |k: &str| acct[k].as_array().cloned().unwrap_or_default();
     let year_start = acct["urlaubsjahr_von"].as_str().and_then(time::parse_date).unwrap_or(as_of);
-    let mut rows: Vec<(chrono::NaiveDate, u8, String, String, f64, String)> = Vec::new();
+    let eintraege = arr("eintraege");
+    // Buchungsdatum eines Eintrags in Ortszeit (created_at ist UTC).
+    let booked_on = |e: &Value| e["created_at"].as_str().and_then(time::parse_utc).map(|t| time::to_local(t).date());
+    let booked_note = |e: &Value| booked_on(e).map(|d| format!("gebucht am {}", time::fmt_date_de(d))).unwrap_or_default();
+    // Begründung des zuletzt erfassten Eintrags einer Art, ergänzt um das Buchungsdatum.
+    let entry_note = |art: &str| {
+        eintraege.iter().filter(|e| e["art"].as_str() == Some(art)).last().map(|e| {
+            let grund = e["grund"].as_str().unwrap_or("").trim();
+            let booked = booked_note(e);
+            if grund.is_empty() { booked } else if booked.is_empty() { grund.into() } else { format!("{grund} · {booked}") }
+        })
+    };
+    // (Datum, Reihenfolge, Art, Bezug, Tage, Bemerkung, Verfall?)
+    let mut rows: Vec<(chrono::NaiveDate, u8, String, String, f64, String, bool)> = Vec::new();
     let uebertrag = acct["uebertrag"].as_f64().unwrap_or(0.0);
-    if uebertrag != 0.0 {
-        rows.push((year_start, 0, "Übertrag".into(), "aus Vorjahren".into(), uebertrag, String::new()));
+    let uebertrag_note = entry_note("uebertrag");
+    if uebertrag != 0.0 || uebertrag_note.is_some() {
+        rows.push((year_start, 0, "Übertrag".into(), "aus Vorjahren".into(), uebertrag, uebertrag_note.unwrap_or_default(), false));
     }
     let anspruch = acct["anspruch"].as_f64().unwrap_or(0.0);
     let aliquot = acct["anspruch_aliquot"].as_bool().unwrap_or(false);
-    rows.push((year_start, 1, "Anspruch".into(), format!("Urlaubsjahr {}", vacation_year_label(acct)), anspruch, if aliquot { "aliquot nach Eintritt".into() } else { String::new() }));
-    for e in arr("eintraege") {
+    let anspruch_note = entry_note("anspruch").unwrap_or_else(|| if aliquot { "aliquot nach Eintritt".into() } else { String::new() });
+    rows.push((year_start, 1, "Anspruch".into(), format!("Urlaubsjahr {}", vacation_year_label(acct)), anspruch, anspruch_note, false));
+    for e in &eintraege {
         let art = e["art"].as_str().unwrap_or("");
         if art == "anspruch" || art == "uebertrag" {
-            continue; // bereits in Anspruch/Übertrag enthalten
+            continue; // bereits in Anspruch/Übertrag enthalten, Begründung steht dort
         }
-        let datum = e["created_at"].as_str().and_then(|c| time::parse_date(&c[..c.len().min(10)])).unwrap_or(year_start);
         let label = match art { "korrektur" => "Korrektur", "verfall" => "Verfall", other => other };
-        rows.push((datum, 2, label.into(), e["grund"].as_str().unwrap_or("").into(), e["tage"].as_f64().unwrap_or(0.0), String::new()));
+        rows.push((year_start, 2, label.into(), e["grund"].as_str().unwrap_or("").into(), e["tage"].as_f64().unwrap_or(0.0), booked_note(e), art == "verfall"));
     }
     for b in arr("buchungen") {
         let von = b["von"].as_str().and_then(time::parse_date).unwrap_or(year_start);
@@ -577,12 +601,24 @@ fn vacation_ledger(acct: &Value, as_of: chrono::NaiveDate) -> Vec<Value> {
         if let Some(k) = b["kommentar"].as_str().filter(|k| !k.trim().is_empty()) {
             bem.push(k.trim().into());
         }
-        rows.push((von, 3, b["label"].as_str().unwrap_or("Urlaub").into(), bezug, -b["tage"].as_f64().unwrap_or(0.0), bem.join(" · ")));
+        rows.push((von, 3, b["label"].as_str().unwrap_or("Urlaub").into(), bezug, -b["tage"].as_f64().unwrap_or(0.0), bem.join(" · "), false));
     }
     rows.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)));
-    let mut rest = 0.0;
+    let mut rest = 0.0_f64;
     rows.into_iter()
-        .map(|(datum, _, art, bezug, tage, bem)| {
+        .map(|(datum, _, art, bezug, tage, mut bem, verfall)| {
+            // Manueller Verfall wirkt wie im Urlaubskonto nur auf offene Ansprüche: höchstens der aktuelle
+            // Rest verfällt, ein positiver Wert ist wirkungslos.
+            let tage = if verfall {
+                let wirksam = if tage < 0.0 { -((-tage).min(rest.max(0.0))) } else { 0.0 };
+                if (wirksam - tage).abs() > 1e-9 {
+                    let hinweis = format!("eingetragen {}, wirksam {}", signed_days(tage), signed_days(wirksam));
+                    bem = if bem.is_empty() { hinweis } else { format!("{bem} · {hinweis}") };
+                }
+                wirksam
+            } else {
+                tage
+            };
             rest += tage;
             json!({
                 "datum": time::fmt_date_de(datum),
@@ -616,7 +652,7 @@ async fn vacation_pdf(
     let as_of = q.stichtag.as_deref().and_then(time::parse_date).unwrap_or_else(time::today_local);
     let acct = crate::absences::vacation_account(&state.db, &emp, as_of).await?;
     let s = settings::load(&state.db).await?;
-    let mut ctx = base_ctx(&state.data_dir, &s);
+    let mut ctx = base_ctx(&s);
     for (k, v) in vacation_row(&acct) {
         ctx.insert(k, v);
     }
@@ -643,7 +679,7 @@ async fn vacation_pdf(
         "verfall": fmt_days(h["verfall_manuell"].as_f64().unwrap_or(0.0) + h["verfall_auto"].as_f64().unwrap_or(0.0)),
         "rest": fmt_days(h["rest"].as_f64().unwrap_or(0.0)),
     })).collect::<Vec<_>>()));
-    let bytes = render_template(&state.data_dir, TEMPLATE_URLAUB, &Value::Object(ctx)).await?;
+    let bytes = render_template(&state.data_dir, TEMPLATE_URLAUB, ctx).await?;
     Ok(pdf_response(bytes, &format!("Urlaubskartei_{}_{}.pdf", as_of.format("%Y"), safe_name(&emp.display_name()))))
 }
 
@@ -664,14 +700,14 @@ async fn vacation_overview_pdf(State(state): State<AppState>, AdminUser(_): Admi
         rows.push(Value::Object(r));
     }
     let s = settings::load(&state.db).await?;
-    let mut ctx = base_ctx(&state.data_dir, &s);
+    let mut ctx = base_ctx(&s);
     ctx.insert("stichtag".into(), json!(time::fmt_date_de(as_of)));
     ctx.insert("rows".into(), json!(rows));
-    let bytes = render_template(&state.data_dir, TEMPLATE_URLAUB_UEBERSICHT, &Value::Object(ctx)).await?;
+    let bytes = render_template(&state.data_dir, TEMPLATE_URLAUB_UEBERSICHT, ctx).await?;
     Ok(pdf_response(bytes, &format!("Urlaubsuebersicht_{}.pdf", time::fmt_date(as_of))))
 }
 
-fn fmt_days(d: f64) -> String {
+pub fn fmt_days(d: f64) -> String {
     if (d - d.round()).abs() < 1e-9 { format!("{}", d.round() as i64) } else { format!("{:.1}", d).replace('.', ",") }
 }
 
@@ -719,17 +755,6 @@ fn fmt_hours(min: i32) -> String {
     if (h - h.round()).abs() < 1e-9 { format!("{}", h.round() as i64) } else { format!("{:.2}", h).replace('.', ",").trim_end_matches('0').to_string() }
 }
 
-fn decode_logo(data_dir: &Path, url: &str) -> anyhow::Result<PathBuf> {
-    let (meta, b64) = url.split_once(',').ok_or_else(|| anyhow::anyhow!("logo"))?;
-    let ext = if meta.contains("png") { "png" } else { "jpg" };
-    let bytes = base64_decode(b64)?;
-    let dir = data_dir.join("tmp");
-    std::fs::create_dir_all(&dir)?;
-    let p = dir.join(format!("logo.{ext}"));
-    std::fs::write(&p, bytes)?;
-    Ok(p)
-}
-
 fn base64_decode(s: &str) -> anyhow::Result<Vec<u8>> {
     const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = Vec::with_capacity(s.len() * 3 / 4);
@@ -772,4 +797,48 @@ async fn compile_latex(dir: &Path, tex_src: &str) -> ApiResult<Vec<u8>> {
     let bytes = std::fs::read(&pdf).map_err(|e| anyhow::anyhow!(e))?;
     let _ = std::fs::remove_dir_all(dir);
     Ok(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ctx(extra: Value) -> serde_json::Map<String, Value> {
+        let mut m = base_ctx(&Settings::default());
+        m.insert("logo".into(), Value::Null);
+        m.insert("personalnr".into(), json!("12"));
+        m.insert("mitarbeiter".into(), json!("Test"));
+        if let Value::Object(e) = extra {
+            m.extend(e);
+        }
+        m
+    }
+
+    #[test]
+    fn monatsbericht_bindet_bausteine_ein() {
+        let tex = render_tex(TEMPLATE, &ctx(json!({
+            "monat": "2026-03", "monat_label": "März 2026", "kpis": [], "days": [], "wochenmodell": "", "wochenstunden": "",
+            "durchrechnung": "", "gleitzeit": null, "soll": "", "ist": "", "pause": "", "abwesenheit": "", "diff": "",
+            "diff_color": "ink", "konten": null, "vorschau": false, "hash": "abc"
+        }))).unwrap();
+        assert!(tex.starts_with(r"\n\documentclass") || tex.contains(r"\documentclass[a4paper,9pt]{extarticle}"), "{tex}");
+        assert!(tex.contains(r"\rfoot{\fs{7.5}{9}\color{light}Arbeitszeitnachweis 2026-03 · Nr.\,12"), "Fußzeile aus set-Variable: {tex}");
+        assert!(tex.contains(r"Arbeitszeitaufzeichnung nach §\,26 AZG"), "{tex}");
+        assert!(tex.contains(r"{\fs{11}{13}März 2026}"), "{tex}");
+        assert!(tex.contains(r"Datum, Unterschrift"), "{tex}");
+        assert_eq!(tex.matches(r"\documentclass").count(), 1);
+    }
+
+    #[test]
+    fn urlaubskartei_bindet_bausteine_ein() {
+        let tex = render_tex(TEMPLATE_URLAUB, &ctx(json!({
+            "urlaubsjahr": "2026", "jahr_von_kurz": "2026", "eintritt": "", "anspruch_jahr": "25", "stichtag": "", "uebertrag": "0",
+            "anspruch": "25", "aliquot": false, "korrektur": null, "verfall": null, "verbraucht": "0", "geplant": "0", "rest": "25",
+            "rest_gesamt": "25", "naechster_verfall": null, "offene": [], "buchungen": [], "historie": []
+        }))).unwrap();
+        assert!(tex.contains(r"Urlaubskartei 2026 · Nr.\,12"), "{tex}");
+        assert!(tex.contains(r"{\fs{11}{13}Urlaubsjahr 2026}"), "{tex}");
+        assert!(tex.contains(r"Urlaubsaufzeichnung nach §\,8 UrlG"), "{tex}");
+        assert!(tex.contains(r"Datum, Unterschrift"), "{tex}");
+    }
 }

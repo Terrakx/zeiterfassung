@@ -61,7 +61,7 @@
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         {#if zustand === 'draussen' && status.sperre}
-          <div class="alert warn" style="grid-column:1 / -1;margin:0">{status.sperre} Bitte an die Verwaltung wenden.</div>
+          <div class="alert warn" style="grid-column:1 / -1;margin:0">{status.sperre}</div>
         {:else if zustand === 'draussen'}
           <button class="action primary" style="grid-column:1 / -1" onclick={() => punch('kommen')} disabled={busy}>Kommen</button>
         {:else if zustand === 'arbeitet'}

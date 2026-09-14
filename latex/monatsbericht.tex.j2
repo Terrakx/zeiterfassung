@@ -1,54 +1,11 @@
-\documentclass[a4paper,9pt]{extarticle}
-\usepackage[a4paper,left=16mm,right=16mm,top=14mm,bottom=16mm,footskip=7mm]{geometry}
-\usepackage{fontspec}
-\IfFontExistsTF{IBM Plex Sans}{\setmainfont{IBM Plex Sans}[Numbers=Monospaced]}{\setmainfont{Latin Modern Sans}}
-\usepackage[table]{xcolor}
-\usepackage{longtable,booktabs,array,graphicx,fancyhdr,lastpage,tabularx}
-\usepackage[german]{babel}
-\definecolor{primary}{HTML}{ {{- primary_hex -}} }
-\definecolor{ink}{HTML}{1C1F22}
-\definecolor{muted}{HTML}{6B7176}
-\definecolor{head}{HTML}{4A5055}
-\definecolor{light}{HTML}{8A9096}
-\definecolor{line}{HTML}{E2E4E6}
-\definecolor{border}{HTML}{C9CDD0}
-\definecolor{weekend}{HTML}{F1F1F0}
-\definecolor{holiday}{HTML}{FFF7E0}
-\definecolor{ok}{HTML}{2E7D4F}
-\definecolor{err}{HTML}{B3261E}
-\color{ink}
-{% raw %}
-\newcommand{\fs}[2]{\fontsize{#1}{#2}\selectfont}
-\newcommand{\metalabel}[1]{\leavevmode{\fs{7.5}{9}\color{muted}\addfontfeature{LetterSpace=6}\MakeUppercase{#1}}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
-\newcommand{\thead}[1]{\leavevmode{\fs{7.5}{9}\color{head}#1}}
-\newcommand{\kpi}[3]{\rule{0pt}{5mm}\begin{tabular}[t]{@{}l@{}}{\fs{7.5}{9}\color{muted}#1}\\[0.3mm]{\fs{12}{14}\bfseries\color{#3}#2}\rule[-2mm]{0pt}{0pt}\end{tabular}}
-{% endraw %}
-\pagestyle{fancy}
-\fancyhf{}
-\renewcommand{\headrulewidth}{0pt}
-\renewcommand{\footrulewidth}{0.3pt}
-\renewcommand{\footrule}{\hbox to\headwidth{\color{line}\leaders\hrule height \footrulewidth\hfill}}
-\lfoot{\fs{7.5}{9}\color{light}{{ fusszeile }}}
-\rfoot{\fs{7.5}{9}\color{light}Arbeitszeitnachweis {{ monat }} · Nr.\,{{ personalnr }} · Seite \thepage/\pageref{LastPage}}
-\setlength{\parindent}{0pt}
-\setlength{\LTleft}{0pt}\setlength{\LTright}{0pt}\setlength{\LTpre}{0pt}\setlength{\LTpost}{0pt}
+{% set fuss = "Arbeitszeitnachweis " ~ monat %}
+{% include "praeambel" %}
 \begin{document}
 
-% ===== Kopf =====
-\begin{minipage}[b]{0.6\textwidth}
-\begin{tabular}{@{}l@{\hspace{3mm}}l@{}}
-{% if logo %}\includegraphics[height=9mm]{ {{- logo -}} }{% else %}{\setlength{\fboxsep}{0pt}\colorbox{primary}{\parbox[c][9mm][c]{9mm}{\centering\color{white}\bfseries\fs{12}{12}{{ initial }}}}}{% endif %} &
-\begin{tabular}[c]{@{}l@{}}{\fs{12}{14}\bfseries {{ firmenname }}}\\[0.5mm]{\fs{8}{10}\color{muted}Arbeitszeitaufzeichnung nach §\,26 AZG}\end{tabular}
-\end{tabular}
-\end{minipage}\hfill
-\begin{minipage}[b]{0.38\textwidth}\raggedleft
-{\fs{16}{17}\bfseries Arbeitszeitnachweis}\\[1.5mm]
-{\fs{11}{13}{{ monat_label }}}
-\end{minipage}
-
-\vspace{3mm}{\color{ink}\rule{\textwidth}{1.2pt}}
+{% set untertitel = "Arbeitszeitaufzeichnung nach §\\,26 AZG" %}
+{% set titel = "Arbeitszeitnachweis" %}
+{% set titel_zeile2 = monat_label %}
+{% include "kopf" %}
 
 \vspace{4mm}
 % ===== Stammdaten =====
@@ -83,11 +40,11 @@
 \endlastfoot
 {% for d in days -%}
 {% if d.holiday %}\rowcolor{holiday}{% elif d.weekend %}\rowcolor{weekend}{% endif %}
-{% if d.weekend and not d.holiday %}\textcolor{light}{ {{- d.datum -}} } & \textcolor{light}{ {{- d.tag -}} }{% else %}{{ d.datum }} & {{ d.tag }}{% endif %} & {{ d.soll }} & {{ d.kommen }} & {{ d.gehen }} & {{ d.pause }} & {{ d.ist }} & {{ d.abwesenheit }} & {% if d.diff_pos %}\textcolor{ok}{ {{- d.diff -}} }{% elif d.diff_neg %}\textcolor{err}{ {{- d.diff -}} }{% else %}{{ d.diff }}{% endif %}\\
+{% if d.weekend and not d.holiday %}\textcolor{light}{ {{- d.datum -}} } & \textcolor{light}{ {{- d.tag -}} }{% else %}{{ d.datum }} & {{ d.tag }}{% endif %} & {{ d.soll }} & {{ d.kommen }} & {{ d.gehen }} & {{ d.pause }} & {{ d.ist }} & {{ d.abwesenheit }} & \textcolor{ {{- d.diff_color -}} }{ {{- d.diff -}} }\\
 \arrayrulecolor{line}\hline
 {% endfor %}
 \arrayrulecolor{ink}\specialrule{0.8pt}{0pt}{0pt}
-\multicolumn{2}{@{}l}{\rule{0pt}{4mm}\bfseries Summe} & \bfseries {{ soll }} & & & \bfseries {{ pause }} & \bfseries {{ ist }} & & \bfseries {% if diff_pos %}\textcolor{ok}{ {{- diff -}} }{% elif diff_neg %}\textcolor{err}{ {{- diff -}} }{% else %}{{ diff }}{% endif %}\\
+\multicolumn{2}{@{}l}{\rule{0pt}{4mm}\bfseries Summe} & \bfseries {{ soll }} & & & \bfseries {{ pause }} & \bfseries {{ ist }} & {% if abwesenheit %}\bfseries Bezahlt {{ abwesenheit }}{% endif %} & \bfseries \textcolor{ {{- diff_color -}} }{ {{- diff -}} }\\
 \end{longtable}}
 
 \vspace{2mm}
@@ -98,13 +55,7 @@
 {% endif %}
 
 \vfill
-% ===== Unterschriften =====
 \vspace{6mm}
-{\setlength{\tabcolsep}{0pt}\arrayrulecolor{ink}\setlength{\arrayrulewidth}{0.4pt}
-\begin{tabularx}{\textwidth}{@{}X@{\hspace{12mm}}X@{}}
-\rule{0pt}{14mm} & \rule{0pt}{14mm}\\
-\cline{1-1}\cline{2-2}
-\rule{0pt}{4mm}{\fs{8}{10}Datum, Unterschrift {{ unterschrift_1 }}} & \rule{0pt}{4mm}{\fs{8}{10}Datum, Unterschrift {{ unterschrift_2 }}}\\
-\end{tabularx}}
+{% include "unterschriften" %}
 
 \end{document}
